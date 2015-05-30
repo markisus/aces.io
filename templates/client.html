@@ -21,7 +21,7 @@
 	  {{!state}}
 	  {{!current_bet}}
 	</div>
-	{{!/seats}}
+      {{!/seats}}
     </div>
       </div>
     <div class="pure-u-1-5">History</div>
@@ -32,8 +32,12 @@
 
 <script src="{{ static_url("js/client.js")}}"></script>
 <script>
-  connect({{gameid}})
-  
+  var receive = function(msg) {
+  console.log("Received something!");
+  console.log(msg);
+  }
+  var send = connect({{gameid}}, receive);
+
   var seats = []
   var seat_1 = { 
   user: 'jeffery',
@@ -48,8 +52,6 @@
   
   seats: [seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1]
 
-  
-  
   }
   });
 </script>

@@ -4,7 +4,7 @@ function url(s) {
 }
 
 
-function connect(gameid) {
+function connect(gameid, callback) {
     var socketUrl = url('gamesocket')
 
     var ws = new WebSocket(socketUrl);
@@ -14,6 +14,8 @@ function connect(gameid) {
     };
 
     ws.onmessage = function (evt) {
-	alert(evt.data);
+	callback(evt.data);
     };
+
+    return function(msg) { ws.send(msg); };
 }

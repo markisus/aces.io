@@ -4,6 +4,7 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 from gamelobby import GameLobby
+import pokerengine
 
 max_games = 100
 room_size = 10
@@ -25,9 +26,13 @@ class GameHandler(tornado.web.RequestHandler):
     def get(self, gameid):
         self.render("client.html", gameid=gameid)
 
+
+get_initial_state = 'get_initial_state'
 class GameSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
-        self.write_message("Okay guy!")
+        game = pokerengine.make_new_game()
+        print("Sending something")
+        self.write_message(game)
 
     def on_message(self, message):
         print(message)
