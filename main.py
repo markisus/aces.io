@@ -3,12 +3,18 @@ from urllib import quote, unquote
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
+from gamelobby import GameLobby
+
+max_games = 100
+room_size = 10
+lobby = GameLobby(max_games)
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         name = self.get_cookie('name', '?')
         name = unquote(name)
-        self.render("index.html", name=name)
+
+        self.render("index.html", name=name, games=lobby.get_games(), room_size=room_size)
 
     def post(self):
         name = self.get_argument('name', '')

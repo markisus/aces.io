@@ -9,3 +9,12 @@ Current name: {{name}}
 <input type="text" name="name"/>
 <input type="submit" value="Set Name">
 </form>
+
+<br/>
+
+Games <br/>
+<ul>
+{% for game in games %}
+<li>Room #{{game['gameid']}}: {{game['num_users']}}/{{room_size}} <a href="/game/{{game['gameid']}}">Join</a></li>
+{% end %}
+</ul>

@@ -4,6 +4,7 @@ class GameLobby:
     def __init__(self, max_games):
         self.max_games = max_games
         conn = sqlite3.connect(':memory:')
+        conn.row_factory = sqlite3.Row
         self.conn = conn
 
         c = conn.cursor()
@@ -17,13 +18,13 @@ class GameLobby:
     def get_games(self):
         c = self.conn.cursor()
         result = c.execute(
-            '''select games.gameid, count(users_games.user) from games \
+            '''select games.gameid, count(users_games.user) as num_users from games \
             left join users_games on games.gameid = users_games.gameid \
             group by games.gameid \
             order by games.gameid asc''')
-        for row in result:
-            print row
+        return result.fetchall()
 
 if __name__ == "__main__":
     g = GameLobby(4)
-    g.get_games()
+    res = g.get_games()
+    print(res)
