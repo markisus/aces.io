@@ -1,2 +1,11 @@
-Aces.io <br/>
 
+Aces.io <br/>
+<br/>
+
+Current name: {{name}}
+
+<form method="post">
+{% module xsrf_form_html() %}
+<input type="text" name="name"/>
+<input type="submit" value="Set Name">
+</form>

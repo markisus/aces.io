@@ -1,11 +1,19 @@
 import os
+from urllib import quote, unquote
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("index.html")
+        name = self.get_cookie('name', '?')
+        name = unquote(name)
+        self.render("index.html", name=name)
+
+    def post(self):
+        name = self.get_argument('name', '')
+        self.set_cookie('name', quote(name))
+        self.redirect('/')
 
 class GameHandler(tornado.web.RequestHandler):
     def get(self, gameid):
