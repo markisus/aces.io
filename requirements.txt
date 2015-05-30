@@ -1,0 +1,4 @@
+backports.ssl-match-hostname==3.4.0.2
+certifi==2015.4.28
+tornado==4.2
+wheel==0.24.0
