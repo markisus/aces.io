@@ -8,6 +8,11 @@
 <div id="content" class="content"></div>
 
 <script id='template' type='text/ractive'>
+{{!^game}}
+Loading
+{{!/game}}
+
+{{!#game}}
   <h1 class="title">Game #{{gameid}}</h1>
   <div class="pure-g">
     <div class="pure-u-4-5">
@@ -15,45 +20,93 @@
       <div class="pure-u-3-5">Public Info</div>
       <div class="pure-u-1-5">Hole Cards</div>
       <div class="pure-u-1-5">Actions</div>
-      {{!#seats}}
+      {{!#seats:seat_number}}
 	<div class="pure-u-1-5 seat {{!state}}">
-	  {{!user}}<br/>
-	  {{!state}}
-	  {{!current_bet}}
+	  <!-- Join/Buy in menu -->
+	  Seat {{!seat_number + 1}}<br/>
+	  {{!#(state == 'empty' && !user_seated)}}
+	  {{!#(show_buyin_menu != seat_number)}}
+	  <a href="#" class="join_button pure-button pure-button-primary" on-click="show_buyin_menu">Join</a>
+	  {{!/step1}}
+	  {{!#(show_buyin_menu == seat_number)}}
+	  <a href="#" class="pure-button" on-click="buy_in_increase">+</a>
+	  <a href="#" class="pure-button" on-click="buy_in_decrease">-</a> <br/>
+	  <a href="#" class="pure-button pure-button-primary" on-click="buy_in">Buy In for {{!buy_in}}</a>
+	  {{!/step2}}
+	  {{!/buyin_menu}}
+	  <!-- End buy in menu -->
+
+	  <!-- User Display -->
+	  {{!#userid}}
+	  {{!name}} <br/>
+	  {{!money}}
+	  {{!/userid}}
+	  <!-- End User Display -->
 	</div>
       {{!/seats}}
     </div>
       </div>
     <div class="pure-u-1-5">History</div>
   </div>
+{{!/game}}
 </script>
-
-<script id='template2' type='text/ractive'>{{!name}}</script>
 
 <script src="{{ static_url("js/client.js")}}"></script>
 <script>
-  var receive = function(msg) {
-  console.log("Received something!");
-  console.log(msg);
-  }
-  var send = connect({{gameid}}, receive);
-
-  var seats = []
-  var seat_1 = { 
-  user: 'jeffery',
-  state: 'call',
-  current_bet: 50
-  }
 
   var ractive = new Ractive({
   el: '#content',
-  template: '#template',
-  data: { 
-  
-  seats: [seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1, seat_1]
+  template: '#template'});
 
-  }
-  });
+<!-- Action handlers -->
+var synchronize_game = function(game) {
+ractive.set('game', game);
+ractive.set('buy_in_increment', game.min_buy_in/2);
+}
+
+var player_joined = function(action) {
+var seat = action.seat
+var seat_number = action.seat_number
+console.log(action, seat, seat_number);
+ractive.set('game.seats.' + seat_number, seat);
+ractive.set('user_seated', true);
+}
+
+var receive = function(msg) {
+var msg = JSON.parse(msg);
+var action = msg['action']
+if (action == "synchronize_game") synchronize_game(msg.game);
+if (action == "player_joined") player_joined(msg);
+window.msg = msg
+}
+<!-- end action handlers -->
+
+  var send = connect({{gameid}}, receive);
+
+<!-- Buy in menu -->
+ractive.on('show_buyin_menu', function(event) {
+ractive.set('show_buyin_menu', event.index.seat_number);
+ractive.set('buy_in', ractive.get('game.min_buy_in'))
+console.log(event)
+});
+
+ractive.on('buy_in_increase', function(event) {
+ractive.add('buy_in', ractive.get('buy_in_increment'));
+});
+
+ractive.on('buy_in_decrease', function(event) {
+var current = ractive.get('buy_in');
+var next = current - ractive.get('buy_in_increment');
+var result = Math.max(next, ractive.get('game.min_buy_in'));
+ractive.set('buy_in', result);
+});
+
+ractive.on('buy_in', function(event) {
+send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.index.seat_number});
+});
+<!-- End Buy in menu -->
+
+
 </script>
 
 </body>

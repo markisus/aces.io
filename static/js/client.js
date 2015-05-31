@@ -8,14 +8,18 @@ function connect(gameid, callback) {
     var socketUrl = url('gamesocket')
 
     var ws = new WebSocket(socketUrl);
+    var send = function(data) {
+	data = JSON.stringify(data);
+	ws.send(data);
+    };
 
     ws.onopen = function() {
-	ws.send(gameid);
+	send({'action': 'connect', 'gameid': gameid});
     };
 
     ws.onmessage = function (evt) {
 	callback(evt.data);
     };
 
-    return function(msg) { ws.send(msg); };
+    return send
 }

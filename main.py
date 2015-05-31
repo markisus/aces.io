@@ -1,4 +1,6 @@
 import os
+import json
+import uuid
 from urllib import quote, unquote
 import tornado.ioloop
 import tornado.web
@@ -9,6 +11,8 @@ import pokerengine
 max_games = 100
 room_size = 10
 lobby = GameLobby(max_games)
+
+sockets_to_userids = dict()
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -27,15 +31,23 @@ class GameHandler(tornado.web.RequestHandler):
         self.render("client.html", gameid=gameid)
 
 
-get_initial_state = 'get_initial_state'
 class GameSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
-        game = pokerengine.make_new_game()
-        print("Sending something")
-        self.write_message(game)
+        self.userid = str(uuid.uuid4())
 
     def on_message(self, message):
-        print(message)
+        data = json.loads(message)
+        print(data)
+        action = data['action']
+
+        if action == 'connect':
+            #todo: fetch actual game
+            self.game = pokerengine.make_new_game()
+            self.write_message({'action': 'synchronize_game', 'game': self.game})
+
+        if action == 'buy_in':
+            result = pokerengine.join(self.game, self.userid, self.get_cookie('name'), data['seat_number'], data['buy_in'])
+            self.write_message(result)
 
     def on_close(self):
         pass
