@@ -64,6 +64,21 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if action == 'buy_in':
             result = self.game.join(self.userid, self.get_cookie('name'), data['seat_number'], data['buy_in'])
             self.force_all_clients_synchronize(result)
+            self.try_game_start()
+
+
+    def try_game_start(self):
+        if self.game.can_start().get('possible', None):
+            start_delay = 0
+            self.send_all_listeners({'action': 'game_countdown', 'delay': start_delay})
+            ioloop = tornado.ioloop.IOLoop.instance()
+            def callback():
+                print("Starting Game")
+                result = self.game.start()
+                print("Game started")
+                if not result.get('error', None):
+                    self.force_all_clients_synchronize(result)
+            ioloop.call_later(start_delay, callback)
 
     def make_synchronize_message(self):
         return {'action': 'synchronize_game', 'game': self.game.make_facade_for_user(self.userid)}
@@ -72,13 +87,16 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         self.write_message(self.make_synchronize_message())
 
     def force_all_clients_synchronize(self, result = {}):
-        if not result.get('error'):
-            for listener in listeners[self.gameid]:
-                if result:
-                    listener.write_message(result)
-                listener.force_client_synchronize()
-        else:
+        if result.get('error'):
             self.write_message(result)
+        else:
+            if result:
+                self.send_all_listeners(result)
+            self.send_all_listeners(self.make_synchronize_message())
+
+    def send_all_listeners(self, msg):
+        for listener in listeners[self.gameid]:
+            listener.write_message(msg)
 
     def on_close(self):
         result = self.game.kick_user(self.userid)

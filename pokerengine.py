@@ -1,11 +1,31 @@
 import copy
+import random
 
 just_joined = 'just_joined'
-dead = 'dead'
+ready = 'ready'
+forcing_big_blind = 'forcing_big_blind'
+all_in = 'all_in'
+
 empty = 'empty'
 
 wait_for_players = 'wait_for_players'
+pre_flop = 'pre_flop'
+flop = 'flop'
+turn = 'turn'
+river = 'river'
 
+suits = "diamonds clubs hearts spades".split(" ")
+ranks = "2 3 4 5 6 7 8 9 10 jack queen king ace".split(" ")
+cards = [(rank, suit) for rank in ranks for suit in suits]
+
+#todo move to util
+def next_greatest(current, candidates):
+    greater = [c for c in candidates if c > current]
+    less = [c for c in candidates if c < current]
+    if not greater and not less:
+        return 0
+    else:
+        return min(greater or less)
 
 class Game:
     def __init__(self, gameid, room_size):
@@ -13,8 +33,10 @@ class Game:
             'gameid': gameid,
             'seats': [],
             'room_size': room_size,
-            'min_raise': 2,
+            'min_raise': 0,
             'min_buy_in': 20,
+            'small_blind': 1,
+            'big_blind': 2,
             'dealer_position': 0,
             'active_user_position': 0,
             'small_blind_position': 0,
@@ -27,15 +49,25 @@ class Game:
         }
 
         for seat_number in range(room_size):
-            self._game['seats'].append(self._make_empty_seat())
+            self._game['seats'].append(self._make_empty_seat(seat_number))
 
     @staticmethod
     def _make_error(msg):
         return {'error': msg}    
 
     @staticmethod
-    def _make_empty_seat():
-        return {'state': 'empty'}
+    def _make_empty_seat(seat_number):
+        seat = {}
+        seat['userid'] = None
+        seat['name'] = ''
+        seat['money'] = 0
+        seat['round_bet'] = 0
+        seat['total_bet'] = 0
+        seat['state'] = empty
+        seat['hole_cards'] = []
+        seat['had_turn'] = False
+        seat['seat_number'] = seat_number
+        return seat
 
     def get_seated_userids(self):
         userids = set()
@@ -62,7 +94,7 @@ class Game:
 
         self._seat_user(seat_number, userid, name, buy_in)
     
-        return {"action": "player_joined", "seat_number": seat_number, "seat": seat}
+        return {"action": "player_joined"}
 
     def get_id(self):
         return self._game['gameid']
@@ -73,15 +105,12 @@ class Game:
         seat['userid'] = userid
         seat['name'] = name
         seat['money'] = money
-        seat['round_bet'] = 0
-        seat['total_bet'] = 0
         seat['state'] = just_joined
-        seat['hole_cards'] = []
-        seat['had_turn'] = False
 
     def make_facade_for_user(self, userid):
         facade = copy.deepcopy(self._game)
         for seat in facade['seats']:
+            print seat
             seat_userid = seat.get('userid', None)
             if seat_userid != userid:
                num_hole_cards = len(seat.get('hole_cards', []))
@@ -111,6 +140,174 @@ class Game:
             user_seat['state'] = empty
         self._do_if_user_exists(userid, action)
 
+    @staticmethod
+    def _make_impossibility(msg):
+        return {'impossible': msg}
+
+    @staticmethod
+    def _make_possibility(msg):
+        return {'possible': msg}
+
+    def _get_prepared_seats(self):
+        prepared_user_states = set((just_joined, ready, forcing_big_blind))
+        return self._filter_seats(lambda seat: seat['state'] in prepared_user_states)
+
+    def _get_ready_seats(self):
+        return self._filter_seats(lambda seat: seat['state'] == ready)
+
+    def _get_needing_hole_cards_seats(self):
+        return self._filter_seats(lambda seat: seat['state'] in [ready, all_in])
+
+    def _get_forcing_big_blind_seats(self):
+        return self._filter_seats(lambda seat: seat['state'] == forcing_big_blind)
+
+    def _filter_seats(self, pred):
+        return [seat for seat in self._game['seats'] if pred(seat)]
+
+    def can_start(self):
+        game = self._game
+        if game['game_state'] != wait_for_players:
+            return self._make_impossibility("game already started")
+        if len(self._get_prepared_seats()) < 2:
+            return self._make_impossibility("not enough prepared users")
+        return self._make_possibility("can start")
+
+    @staticmethod
+    def _extract_seat_numbers(seats):
+        return map(lambda seat: seat['seat_number'], seats)
+
+    @staticmethod
+    def _make_shuffled_deck():
+        _cards = copy.deepcopy(cards)
+        random.shuffle(_cards)
+        return _cards
+
+    def start(self):
+        start_possibility = self.can_start()
+        if start_possibility.get('possible', None):
+            # Set Deck
+            self._game['deck'] = self._make_shuffled_deck()
+
+            # Ready more players
+            ready_seats = self._get_ready_seats()
+            if len(ready_seats) <= 1:
+                prepared_seats = self._get_prepared_seats()
+                for seat in prepared_seats:
+                    seat['state'] = ready
+
+            # Set Dealer
+            dealer_position = self._game['dealer_position']
+            ready_seats = self._get_ready_seats()
+            ready_positions = self._extract_seat_numbers(ready_seats)
+            dealer_position = next_greatest(dealer_position, ready_positions)
+            self._game['dealer_position'] = dealer_position
+
+            # Set Blind Positions
+            small_blind_potentials = self._extract_seat_numbers(self._get_ready_seats())
+            big_blind_potentials = self._extract_seat_numbers(self._get_prepared_seats())
+            small_blind_position = next_greatest(dealer_position, small_blind_potentials)
+            big_blind_position = next_greatest(small_blind_position, big_blind_potentials)
+            if big_blind_position == dealer_position:
+                #Heads up position
+                small_blind_position, big_blind_position = \
+                    big_blind_position, small_blind_position
+            self._game['small_blind_position'] = small_blind_position
+            self._game['big_blind_position'] = big_blind_position
+
+            # Collect Blinds
+            small_blind = self._game['small_blind']
+            big_blind = self._game['big_blind']
+            forcing_big_blind_seats = self._get_forcing_big_blind_seats()
+            small_blind_seat = self._game['seats'][small_blind_position]
+            big_blind_seat = self._game['seats'][big_blind_position]
+            self._bet_or_all_in(small_blind_seat, small_blind)
+            for seat in [big_blind_seat] + forcing_big_blind_seats:
+                self._bet_or_all_in(seat, big_blind)
+
+            # Transition
+            self._start_next_phase() #Should put us into pre-flop
+
+            # Deal hole cards
+            for seat in self._get_needing_hole_cards_seats():
+                for i in range(2):
+                    card = self._deal_card()
+                    seat['hole_cards'].append(card)
+
+        return start_possibility
+
+    def _deal_card(self):
+        deck = self._game['deck']
+        card = deck[-1]
+        deck.pop()
+        return card
+        
+    def _get_can_bet_seats(self):
+        return self._filter_seats(
+            lambda seat:
+            seat['state'] == ready and \
+            (seat['round_bet'] < self._get_current_bet() or not seat['had_turn'])
+        )
+
+    def _start_next_phase(self):
+        # Set Betting State
+        current_state = self._game['game_state']
+        next_states = {
+            wait_for_players: pre_flop,
+            pre_flop: flop,
+            flop: turn,
+            turn: river
+        }
+        current_state = next_states[current_state]
+        self._game['game_state'] = current_state
+        
+        # Deal Community Cards
+        num_community_cards = {
+            pre_flop: 0,
+            flop: 3,
+            turn: 1,
+            river: 1,
+        }[current_state]
+        
+        for i in range(num_community_cards):
+            card = self._deal_card()
+            self._game['community_cards'].append(card)
+
+        # Set UTG
+        utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
+        big_blind_position = self._game['big_blind_position']
+        self._game['active_user_position'] = next_greatest(
+            big_blind_position, utg_potentials
+        )
+
+        # Maybe auto advance
+        
+        
+
+    def _get_current_bet(self):
+        bet = 0
+        for seat in self._game['seats']:
+            bet = max(seat['round_bet'], bet)
+        return bet
+
+    def _bet_or_all_in(self, seat, amount):
+        user_money = seat['money']
+        amount_to_bet = min(user_money, amount)
+        going_all_in = amount >= user_money
+        bet_before = self._get_current_bet()
+        seat['round_bet'] += amount_to_bet
+        self._game['pot'] += amount_to_bet
+        seat['total_bet'] += amount_to_bet
+        bet_after = self._get_current_bet()
+        seat['money'] -= amount_to_bet
+        if going_all_in:
+            seat['state'] = all_in
+        else:
+            seat['state'] = ready
+        amount_raised = bet_after - bet_before
+        self._game['min_raise'] = min(self._game['min_raise'], amount_raised)
+        
+        
+                        
         
 class GameLobby:
     def __init__(self, room_size):
