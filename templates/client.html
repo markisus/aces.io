@@ -24,7 +24,7 @@ Loading
       
       <div class="pure-u-1-5">Hole Cards
 	{{!#my_seat.hole_cards}}
-	<img src="{{!get_card_url(.)}}"/>
+	<img class="card-large" src="{{!get_card_url(.)}}"/>
 	{{!/hole_cards}}
       </div>
       <div class="pure-u-1-5">Actions
@@ -60,7 +60,7 @@ Loading
 	  {{!money}}
 	  {{!state}}
 	  {{!#hole_cards}}
-	  <img src="{{!get_card_url(.)}}"/>
+	  <img class="card" src="{{!get_card_url(.)}}"/>
 	  {{!/hole_cards}}
 	  {{!/userid}}
 	  <!-- End User Display -->
