@@ -22,14 +22,27 @@ Loading
 	{{!game_state}}
       </div>
       
-      <div class="pure-u-1-5">Hole Cards</div>
-      <div class="pure-u-1-5">Actions</div>
+      <div class="pure-u-1-5">Hole Cards
+	{{!#my_seat.hole_cards}}
+	<img src="{{!get_card_url(.)}}"/>
+	{{!/hole_cards}}
+      </div>
+      <div class="pure-u-1-5">Actions
+	<!-- Auto action -->
+	check check-fold call-any
+	fold call money, call any
+
+	<!-- Action -->
+	fold
+	call (all-in)
+	raise-to (all-in)
+      </div>
       {{!#seats:seat_number}}
-	<div class="pure-u-1-5 seat {{!state}}">
+	<div class="pure-u-1-5 seat {{!state}} {{!#active_user_position == seat_number && game_state != 'wait_for_players'}}active{{!/active}}">
 	  Seat {{!seat_number + 1}}<br/>
 
 	  <!-- Join/Buy in menu -->
-	  {{!#(state == 'empty' && my_seat == -1)}}
+	  {{!#(state == 'empty' && !my_seat)}}
 	  {{!#(show_buyin_menu != seat_number)}}
 	  <a href="#" class="join_button pure-button pure-button-primary" on-click="show_buyin_menu">Join</a>
 	  {{!/step1}}
@@ -46,6 +59,9 @@ Loading
 	  {{!name}} <br/>
 	  {{!money}}
 	  {{!state}}
+	  {{!#hole_cards}}
+	  <img src="{{!get_card_url(.)}}"/>
+	  {{!/hole_cards}}
 	  {{!/userid}}
 	  <!-- End User Display -->
 	</div>
@@ -63,6 +79,17 @@ Loading
   var ractive = new Ractive({
   el: '#content',
   template: '#template',
+
+  data: {
+  get_card_url: function(card) {
+  if (card == 'unknown') return "{{ static_url('images/cards/blue-back.png') }}";
+  var card_array = card.split('.');
+  var rank = card_array[0];
+  var suit = card_array[1];
+  return "{{ static_url('images/cards/') }}" + suit + "/" + rank + ".svg";
+  }
+  },
+
   computed: {
   
   seated_userids: function() {
@@ -72,8 +99,10 @@ Loading
   my_seat: function() {
   var userid = this.get('userid');
   var seated_userids = this.get('seated_userids');
-  return seated_userids.indexOf(userid);
-  }
+  index = seated_userids.indexOf(userid);
+  var seats = this.get('game.seats');
+  return seats[index];
+  },
 
   }
 

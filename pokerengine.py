@@ -16,7 +16,7 @@ river = 'river'
 
 suits = "diamonds clubs hearts spades".split(" ")
 ranks = "2 3 4 5 6 7 8 9 10 jack queen king ace".split(" ")
-cards = [(rank, suit) for rank in ranks for suit in suits]
+cards = [rank + "." + suit for rank in ranks for suit in suits]
 
 #todo move to util
 def next_greatest(current, candidates):
@@ -110,11 +110,11 @@ class Game:
     def make_facade_for_user(self, userid):
         facade = copy.deepcopy(self._game)
         for seat in facade['seats']:
-            print seat
             seat_userid = seat.get('userid', None)
             if seat_userid != userid:
                num_hole_cards = len(seat.get('hole_cards', []))
                seat['hole_cards'] = num_hole_cards*['unknown']
+        del facade['deck']
         return facade
 
     def _find_seat_by_userid(self, userid):

@@ -92,11 +92,17 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         else:
             if result:
                 self.send_all_listeners(result)
-            self.send_all_listeners(self.make_synchronize_message())
+            msg_factory = lambda listener: listener.make_synchronize_message()
+            self.send_all_listeners(msg_factory)
 
-    def send_all_listeners(self, msg):
+    def send_all_listeners(self, msg_factory):
+        # A message (dictionary) will be lifted to a factory producing the message
+        if type(msg_factory) == type(dict()):
+            data = msg_factory
+            msg_factory = lambda listener: data
+        
         for listener in listeners[self.gameid]:
-            listener.write_message(msg)
+            listener.write_message(msg_factory(listener))
 
     def on_close(self):
         result = self.game.kick_user(self.userid)
