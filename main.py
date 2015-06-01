@@ -11,6 +11,7 @@ import pokerengine
 room_size = 10
 lobby = pokerengine.GameLobby(room_size)
 listeners = defaultdict(set)
+listener_userids = defaultdict(set)
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -38,7 +39,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if not self.userid:
             self.write_message({'error': 'no userid'})
             self.close()
-        print("Opening with " + self.userid)
+            return
 
     def on_message(self, message):
         data = json.loads(message)
@@ -46,7 +47,12 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
 
         if action == 'connect':
             gameid = data['gameid']
+            if self.userid in listener_userids[gameid]:
+                self.write_message({'error': 'user already connected from another location'})
+                self.close()
+                return
             listeners[gameid].add(self)
+            listener_userids[gameid].add(self.userid)
             self.gameid = gameid
             self.game = lobby.get_game(gameid)
             if not self.game:
@@ -77,6 +83,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         result = self.game.kick_user(self.userid)
         listeners[self.gameid].remove(self)
+        listener_userids[self.gameid].remove(self.userid)
         self.force_all_clients_synchronize()
 
 application = tornado.web.Application(
