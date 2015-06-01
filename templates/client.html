@@ -22,9 +22,10 @@ Loading
       <div class="pure-u-1-5">Actions</div>
       {{!#seats:seat_number}}
 	<div class="pure-u-1-5 seat {{!state}}">
-	  <!-- Join/Buy in menu -->
 	  Seat {{!seat_number + 1}}<br/>
-	  {{!#(state == 'empty' && !user_seated)}}
+
+	  <!-- Join/Buy in menu -->
+	  {{!#(state == 'empty' && my_seat == -1)}}
 	  {{!#(show_buyin_menu != seat_number)}}
 	  <a href="#" class="join_button pure-button pure-button-primary" on-click="show_buyin_menu">Join</a>
 	  {{!/step1}}
@@ -40,6 +41,7 @@ Loading
 	  {{!#userid}}
 	  {{!name}} <br/>
 	  {{!money}}
+	  {{!state}}
 	  {{!/userid}}
 	  <!-- End User Display -->
 	</div>
@@ -56,32 +58,44 @@ Loading
 
   var ractive = new Ractive({
   el: '#content',
-  template: '#template'});
+  template: '#template',
+  computed: {
+  
+  seated_userids: function() {
+  return this.get('game.seats').map(function(seat){ return seat.userid });
+  },
+
+  my_seat: function() {
+  var userid = this.get('userid');
+  var seated_userids = this.get('seated_userids');
+  return seated_userids.indexOf(userid);
+  }
+
+  }
+
+  });
 
 <!-- Action handlers -->
 var synchronize_game = function(game) {
 ractive.set('game', game);
 ractive.set('buy_in_increment', game.min_buy_in/2);
 }
-
-var player_joined = function(action) {
-var seat = action.seat
-var seat_number = action.seat_number
-console.log(action, seat, seat_number);
-ractive.set('game.seats.' + seat_number, seat);
-ractive.set('user_seated', true);
+var set_userid = function(userid) {
+console.log("setting userid", userid);
+ractive.set('userid', userid);
 }
 
 var receive = function(msg) {
 var msg = JSON.parse(msg);
+console.log(msg)
 var action = msg['action']
 if (action == "synchronize_game") synchronize_game(msg.game);
-if (action == "player_joined") player_joined(msg);
+if (action == "set_userid") set_userid(msg.userid);
 window.msg = msg
 }
 <!-- end action handlers -->
 
-  var send = connect({{gameid}}, receive);
+var send = connect({{gameid}}, receive);
 
 <!-- Buy in menu -->
 ractive.on('show_buyin_menu', function(event) {
@@ -105,7 +119,6 @@ ractive.on('buy_in', function(event) {
 send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.index.seat_number});
 });
 <!-- End Buy in menu -->
-
 
 </script>
 
