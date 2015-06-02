@@ -6,6 +6,7 @@ ready = 'ready'
 forcing_big_blind = 'forcing_big_blind'
 all_in = 'all_in'
 folded = 'folded'
+busted = 'busted'
 empty = 'empty'
 
 wait_for_players = 'wait_for_players'
@@ -81,21 +82,16 @@ class Game:
     def join(self, userid, name, seat_number, buy_in):
         game = self._game
         if not game:
-            return self._make_error('Game does not exist')
-
+            return
         if seat_number < 0 or seat_number >= len(game['seats']):
-            return self._make_error('Seat not found')
+            return
         seat = game['seats'][seat_number]
-        
         if userid in self.get_seated_userids():
-            return self._make_error('User already seated')
-
+            return
         if buy_in < game['min_buy_in']:
-            return self._make_error('Buy in too low, got %s needed %s' % (buy_in, game['min_buy_in']))
-
+            return
         self._seat_user(seat_number, userid, name, buy_in)
-    
-        return {"action": "player_joined"}
+
 
     def get_id(self):
         return self._game['gameid']
@@ -130,29 +126,18 @@ class Game:
         user_seat = self._find_seat_by_userid(userid)
         if user_seat:
             return action(user_seat)
-        else:
-            return self._make_error("user not found")
 
     def kick_user(self, userid):
         def action(user_seat):
-            result = self.fold(user_seat['userid'])
-            # If we cannot fold right now, just put whatever money we have into the pot
-            if result.get('impossible', or None):
-                seat_number = user_seat['seat_number']
-                self._game['pot'] += user_seat['round_bet']
-                if self._is_last_man_standing():
-                    self._award_last_man_standing()
+            self._game['pot'] += user_seat['round_bet']
+            user_seat['round_bet'] = 0
+            seat_number = user_seat['seat_number']
+            folded = self.try_fold(user_seat['userid'])
             self._game['seats'][seat_number] = self._make_empty_seat(seat_number)
-            return {'action': 'kicked_user'}
+            if not folded:
+                self._try_award_last_man_standing()
+            return True
         return self._do_if_user_exists(userid, action)
-
-    @staticmethod
-    def _make_impossibility(msg):
-        return {'impossible': msg}
-
-    @staticmethod
-    def _make_possibility(msg):
-        return {'possible': msg}
 
     def _get_prepared_seats(self):
         prepared_user_states = set((just_joined, ready, forcing_big_blind))
@@ -173,10 +158,10 @@ class Game:
     def can_start(self):
         game = self._game
         if game['game_state'] != wait_for_players:
-            return self._make_impossibility("game already started")
+            return False
         if len(self._get_prepared_seats()) < 2:
-            return self._make_impossibility("not enough prepared users")
-        return self._make_possibility("can start")
+            return False
+        return True
 
     @staticmethod
     def _extract_seat_numbers(seats):
@@ -189,8 +174,7 @@ class Game:
         return _cards
 
     def start(self):
-        start_possibility = self.can_start()
-        if start_possibility.get('possible', None):
+        if self.can_start():
             # Set Deck
             self._game['deck'] = self._make_shuffled_deck()
 
@@ -239,7 +223,7 @@ class Game:
                     card = self._deal_card()
                     seat['hole_cards'].append(card)
 
-        return start_possibility
+            return True
 
     def _deal_card(self):
         deck = self._game['deck']
@@ -309,38 +293,29 @@ class Game:
         amount_raised = bet_after - bet_before
         self._game['min_raise'] = min(self._game['min_raise'], amount_raised)
 
-    def _make_possibility_if_user_active(self, userid, msg):
+    def _is_user_active(self, userid):
         active_user_position = self._game['active_user_position']
         if active_user_position is None:
-            return self._make_impossibility("not anyone's turn")
+            return False
         active_user_id = self._game['seats'][active_user_position].get('userid', None)
-        if active_user_id = userid:
-            return self._make_possibility(msg)
-        else:
-            return self._make_impossibility("not user's turn")
+        return active_user_id == userid
 
-    def can_fold(self, userid):
-        return self._make_possibility_if_user_active("can fold")
-
-    def fold(self, userid):
-        result = self.can_fold(userid)
-        if result.get("possible", None):
-            seat = self.find_seat_by_userid(userid)
+    def try_fold(self, userid):
+        if self._is_user_active(userid):
+            seat = self._find_seat_by_userid(userid)
             seat['state'] = folded
             seat['had_turn'] = True
             self._end_turn()
-            return {'action': 'player_folded', 'userid': userid}
-        return result
+            return True
 
-
-    def _is_last_man_standing(self):
+    def _try_award_last_man_standing(self):
         still_standing_seats = self._get_still_standing_seats()
-        return len(still_standing_seats) == 1
-
-    def _award_last_man_standing(self):
-        last_man_standing = still_standing_seats[0]
-        last_man_standing['money'] += self._game['pot']
-        self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing}
+        if len(still_standing_seats) == 1:
+            last_man_standing = still_standing_seats[0]
+            last_man_standing['money'] += self._game['pot']
+            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing}
+            self._reset_game()
+            return True
 
     def _make_pot(self):
         for seat in self._game['seats']:
@@ -348,10 +323,7 @@ class Game:
             seat['round_bet'] = 0
 
     def _end_turn(self):
-        # Award last man standing
-        if self._is_last_man_standing():
-            self._award_last_man_standing()
-        else:
+        if not self._try_award_last_man_standing():
             # Advance user
             active_user_position = self._game['active_user_position']
             next_active_positions = self._extract_seat_numbers(self._get_can_bet_seats())
@@ -367,6 +339,8 @@ class Game:
     
     def _reset_game(self):
         for seat in self._game['seats']:
+            if seat['state'] == empty:
+                continue
             seat['hole_cards'] = []
             seat['total_bet'] = 0
             seat['round_bet'] = 0
