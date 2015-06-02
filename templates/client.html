@@ -19,15 +19,19 @@ Loading
       <div class="pure-g">
       <div class="pure-u-3-5">
 	Public Info <br/>
-	{{!game_state}}
+	{{!#win_screen}}
+	{{!#(win_condition == 'last_man_standing')}}
+	{{!this.winner.name}} won {{!this.win_amount}}!
+	{{!/win_condition}}
+	{{!/win_screen}}
+
+	<!-- Community Cards --><br/>
+	{{!#community_cards}}
+	<img class="card-large" src="{{!get_card_url(.)}}"/>
+	{{!/community_cards}}
       </div>
       
-      <div class="pure-u-1-5">Hole Cards
-	{{!#my_seat.hole_cards}}
-	<img class="card-large" src="{{!get_card_url(.)}}"/>
-	{{!/hole_cards}}
-      </div>
-      <div class="pure-u-1-5">Actions
+      <div class="pure-u-2-5">Actions
 	<!-- Auto action 
 	check check-fold call-any
 	fold call money, call any
@@ -40,7 +44,9 @@ Loading
 	-->
 	<br/>
 	{{!#is_my_turn}}
-	<button class="pure-button" on-click="fold">fold</button>
+	<button class="pure-button" on-click="fold">fold</button><br/>
+	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}}</button><br/>
+	<button class="pure-button pure-button-primary" on-click="raise_menu">Raise</button>
 	{{!/is_my_turn}}
       </div>
       {{!#seats:seat_number}}
@@ -69,7 +75,7 @@ Loading
 	  {{!state}}
 	  <br/>
 	  {{!#hole_cards}}
-	  <img class="card" src="{{!get_card_url(.)}}"/>
+	  <img class="card-large" src="{{!get_card_url(.)}}"/>
 	  {{!/hole_cards}}
 	  <br/>
 	  {{!round_bet}}
@@ -120,6 +126,19 @@ Loading
   var active_user_position = this.get('game.active_user_position');
   var game_state = this.get('game.game_state');
   return my_seat.seat_number == active_user_position && game_state != 'wait_for_players';
+  },
+
+  current_bet: function() {
+  var seats = this.get('game.seats');
+  var round_bets = seats.map(function (seat) {return seat.round_bet});
+  return Math.max.apply(null, round_bets);
+  },
+
+  call_check: function() {
+  var current = this.get('current_bet');
+  var my_round_bet = this.get('my_seat').round_bet;
+  if (my_round_bet == current) return 'check'
+  return 'call ' + (current - my_round_bet);
   }
 
   }
@@ -177,6 +196,12 @@ send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.i
 ractive.on('fold', function(event) {
 send({'action':'fold'});
 });
+
+ractive.on('call_check', function(event) {
+send({'action':'call'}); 
+});
+
+
 <!-- End Actions -->
 
 </script>

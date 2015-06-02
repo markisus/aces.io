@@ -69,19 +69,25 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             folded = self.game.try_fold(self.userid)
             if folded:
                 self.force_all_clients_synchronize()
-        #Try auto start game
-        self.try_game_start()
 
-    def try_game_start(self):
-        if self.game.can_start():
-            start_delay = 0
-            self.send_all_listeners({'action': 'game_countdown', 'delay': start_delay})
+        if action == 'call':
+            called = self.game.try_call(self.userid)
+            if called:
+                self.force_all_clients_synchronize()
+
+        #Try transition
+        self.try_start_next_phase()
+
+    def try_start_next_phase(self):
+        if self.game.can_start_next_phase():
+            delay = 1
+            self.send_all_listeners({'action': 'phase_transitin_timer', 'delay': delay})
             ioloop = tornado.ioloop.IOLoop.instance()
             def callback():
-                started = self.game.start()
-                if started:
+                transitioned = self.game.try_start_next_phase()
+                if transitioned:
                     self.force_all_clients_synchronize()
-            ioloop.call_later(start_delay, callback)
+            ioloop.call_later(delay, callback)
 
     def make_synchronize_message(self):
         return {'action': 'synchronize_game', 'game': self.game.make_facade_for_user(self.userid)}

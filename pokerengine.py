@@ -43,11 +43,11 @@ class Game:
             'small_blind_position': 0,
             'big_blind_position': 0,
             'pot': 0,
-            'current_bet': 0,
             'deck': [],
             'community_cards': [],
             'game_state': wait_for_players,
             'win_screen': None,
+            'transitioning': False,
         }
 
         for seat_number in range(room_size):
@@ -155,7 +155,7 @@ class Game:
     def _filter_seats(self, pred):
         return [seat for seat in self._game['seats'] if pred(seat)]
 
-    def can_start(self):
+    def _can_start(self):
         game = self._game
         if game['game_state'] != wait_for_players:
             return False
@@ -173,8 +173,8 @@ class Game:
         random.shuffle(_cards)
         return _cards
 
-    def start(self):
-        if self.can_start():
+    def _try_start(self):
+        if self._can_start():
             self._game['win_screen'] = None
             # Set Deck
             self._game['deck'] = self._make_shuffled_deck()
@@ -215,9 +215,6 @@ class Game:
             for seat in [big_blind_seat] + forcing_big_blind_seats:
                 self._bet_or_all_in(seat, big_blind)
 
-            # Transition
-            self._start_next_phase() #Should put us into pre-flop
-
             # Deal hole cards
             for seat in self._get_still_standing_seats():
                 for i in range(2):
@@ -239,7 +236,22 @@ class Game:
             (seat['round_bet'] < self._get_current_bet() or not seat['had_turn'])
         )
 
-    def _start_next_phase(self):
+    def can_start_next_phase(self):
+        if self._game['active_user_position'] is None \
+           and self._game['game_state'] != wait_for_players:
+            return True
+        if self._can_start():
+            return True
+        return False
+        
+    def try_start_next_phase(self):
+        if not self.can_start_next_phase():
+            return False
+
+        just_started = self._try_start()
+        if not just_started:
+            self._reset_round()
+
         # Set Betting State
         current_state = self._game['game_state']
         next_states = {
@@ -265,13 +277,17 @@ class Game:
 
         # Set UTG
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
+        print "utg potentials", utg_potentials
+
         big_blind_position = self._game['big_blind_position']
+        print "bb position", big_blind_position
+
         self._game['active_user_position'] = next_greatest(
             big_blind_position, utg_potentials
         )
 
-        # Maybe auto advance
-        
+        return True
+
     def _get_current_bet(self):
         bet = 0
         for seat in self._game['seats']:
@@ -314,8 +330,10 @@ class Game:
         if len(still_standing_seats) == 1:
             last_man_standing = still_standing_seats[0]
             self._make_pot()
-            last_man_standing['money'] += self._game['pot']
-            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing}
+            pot_amount = self._game['pot']
+            last_man_standing['money'] += pot_amount
+            self._game['pot'] = 0
+            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing, 'win_amount': pot_amount}
             self._reset_game()
             return True
 
@@ -323,6 +341,7 @@ class Game:
         for seat in self._game['seats']:
             self._game['pot'] += seat['round_bet']
             seat['round_bet'] = 0
+
 
     def _end_turn(self):
         if not self._try_award_last_man_standing():
@@ -332,13 +351,16 @@ class Game:
             next_active_position = next_greatest(
                 active_user_position, next_active_positions
             )
-            if next_active_position is not None:
-                self._game['active_user_position'] = next_active_user_position
-            else:
-                # No one can move - round over
-                # TODO
-                pass
-    
+            self._game['active_user_position'] = next_active_position
+        
+    def _reset_round(self):
+        self._make_pot()
+        for seat in self._game['seats']:
+            if seat['state'] == empty:
+                continue
+            seat['had_turn'] = False
+            seat['round_bet'] = 0
+
     def _reset_game(self):
         for seat in self._game['seats']:
             if seat['state'] == empty:
@@ -355,7 +377,15 @@ class Game:
         self._game['min_raise'] = 0
         self._game['pot'] = 0
         self._game['game_state'] = wait_for_players
-            
+
+    def try_call(self, userid):
+        if self._is_user_active(userid):
+            seat = self._find_seat_by_userid(userid)
+            needed_to_call = self._get_current_bet() - seat['round_bet']
+            self._bet_or_all_in(seat, needed_to_call)
+            seat['had_turn'] = True
+            self._end_turn()
+            return True
                 
 class GameLobby:
     def __init__(self, room_size):
