@@ -312,6 +312,7 @@ class Game:
         still_standing_seats = self._get_still_standing_seats()
         if len(still_standing_seats) == 1:
             last_man_standing = still_standing_seats[0]
+            self._make_pot()
             last_man_standing['money'] += self._game['pot']
             self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing}
             self._reset_game()
