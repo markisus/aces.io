@@ -175,6 +175,7 @@ class Game:
 
     def start(self):
         if self.can_start():
+            self._game['win_screen'] = None
             # Set Deck
             self._game['deck'] = self._make_shuffled_deck()
 

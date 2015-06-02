@@ -28,28 +28,36 @@ Loading
 	{{!/hole_cards}}
       </div>
       <div class="pure-u-1-5">Actions
-	<!-- Auto action -->
+	<!-- Auto action 
 	check check-fold call-any
 	fold call money, call any
-
-	<!-- Action -->
+	-->
+	<!-- Action 
 	fold
+	check
 	call (all-in)
 	raise-to (all-in)
+	-->
+	<br/>
+	{{!#is_my_turn}}
+	<button class="pure-button" on-click="fold">fold</button>
+	{{!/is_my_turn}}
       </div>
       {{!#seats:seat_number}}
 	<div class="pure-u-1-5 seat {{!state}} {{!#active_user_position == seat_number && game_state != 'wait_for_players'}}active{{!/active}}">
-	  Seat {{!seat_number + 1}}<br/>
+	  Seat {{!seat_number + 1}}
+	  {{!#(seat_number == dealer_position)}}(D){{!/dealer}}
+	  <br/>
 
 	  <!-- Join/Buy in menu -->
 	  {{!#(state == 'empty' && !my_seat)}}
 	  {{!#(show_buyin_menu != seat_number)}}
-	  <a href="#" class="join_button pure-button pure-button-primary" on-click="show_buyin_menu">Join</a>
+	  <button class="join_button pure-button pure-button-primary" on-click="show_buyin_menu">Join</button>
 	  {{!/step1}}
 	  {{!#(show_buyin_menu == seat_number)}}
-	  <a href="#" class="pure-button" on-click="buy_in_increase">+</a>
-	  <a href="#" class="pure-button" on-click="buy_in_decrease">-</a> <br/>
-	  <a href="#" class="pure-button pure-button-primary" on-click="buy_in">Buy In for {{!buy_in}}</a>
+	  <button class="pure-button" on-click="buy_in_increase">+</button>
+	  <button class="pure-button" on-click="buy_in_decrease">-</button> <br/>
+	  <button class="pure-button pure-button-primary" on-click="buy_in">Buy In for {{!buy_in}}</button>
 	  {{!/step2}}
 	  {{!/buyin_menu}}
 	  <!-- End buy in menu -->
@@ -63,6 +71,8 @@ Loading
 	  {{!#hole_cards}}
 	  <img class="card" src="{{!get_card_url(.)}}"/>
 	  {{!/hole_cards}}
+	  <br/>
+	  {{!round_bet}}
 	  {{!/userid}}
 	  <!-- End User Display -->
 	</div>
@@ -105,9 +115,18 @@ Loading
   return seats[index];
   },
 
+  is_my_turn: function() {
+  var my_seat = this.get('my_seat');
+  var active_user_position = this.get('game.active_user_position');
+  var game_state = this.get('game.game_state');
+  return my_seat.seat_number == active_user_position && game_state != 'wait_for_players';
+  }
+
   }
 
   });
+
+
 
 <!-- Action handlers -->
 var synchronize_game = function(game) {
@@ -127,9 +146,9 @@ if (action == "synchronize_game") synchronize_game(msg.game);
 if (action == "set_userid") set_userid(msg.userid);
 window.msg = msg
 }
+var send = connect({{gameid}}, receive);
 <!-- end action handlers -->
 
-var send = connect({{gameid}}, receive);
 
 <!-- Buy in menu -->
 ractive.on('show_buyin_menu', function(event) {
@@ -153,6 +172,12 @@ ractive.on('buy_in', function(event) {
 send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.index.seat_number});
 });
 <!-- End Buy in menu -->
+
+<!-- Actions -->
+ractive.on('fold', function(event) {
+send({'action':'fold'});
+});
+<!-- End Actions -->
 
 </script>
 

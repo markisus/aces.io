@@ -64,7 +64,13 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if action == 'buy_in':
             self.game.join(self.userid, self.get_cookie('name'), data['seat_number'], data['buy_in'])
             self.force_all_clients_synchronize()
-            self.try_game_start()
+
+        if action == 'fold':
+            folded = self.game.try_fold(self.userid)
+            if folded:
+                self.force_all_clients_synchronize()
+        #Try auto start game
+        self.try_game_start()
 
     def try_game_start(self):
         if self.game.can_start():
