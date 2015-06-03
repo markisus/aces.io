@@ -14,24 +14,33 @@ Loading
 
 {{!#game}}
   <h1 class="title">Game #{{gameid}}</h1>
-  <div class="pure-g">
-    <div class="pure-u-4-5">
-      <div class="pure-g">
-      <div class="pure-u-3-5">
-	Public Info <br/>
-	{{!#win_screen}}
-	{{!#(win_condition == 'last_man_standing')}}
-	{{!this.winner.name}} won {{!this.win_amount}}!
-	{{!/win_condition}}
-	{{!/win_screen}}
+  <div>
+      
+
+
+	<div class="circle-container">
+	    <div class="el table">
+	{{!#pot}}
+	<span class="chips">
+	  ${{!pot}}
+	  </span>
+	{{!/pot}}
 
 	<!-- Community Cards --><br/>
 	{{!#community_cards}}
 	<img class="card-large" src="{{!get_card_url(.)}}"/>
 	{{!/community_cards}}
-      </div>
-      
-      <div class="pure-u-2-5">Actions
+
+	{{!#win_screen}}
+	{{!#(win_condition == 'last_man_standing')}}
+	{{!this.winner.name}} won {{!this.win_amount}}!
+	{{!/win_condition}}
+	{{!/win_screen}}
+	
+
+	    </div>
+
+      <div class="el actions">
 	<!-- Auto action 
 	check check-fold call-any
 	fold call money, call any
@@ -49,11 +58,17 @@ Loading
 	<button class="pure-button pure-button-primary" on-click="raise_menu">Raise</button>
 	{{!/is_my_turn}}
       </div>
-      {{!#seats:seat_number}}
-	<div class="pure-u-1-5 seat {{!state}} {{!#active_user_position == seat_number && game_state != 'wait_for_players'}}active{{!/active}}">
-	  Seat {{!seat_number + 1}}
-	  {{!#(seat_number == dealer_position)}}(D){{!/dealer}}
-	  <br/>
+
+
+
+	  {{!#seats}}
+	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}}">
+
+	    {{!#round_bet}}
+	<span class="chips">
+	  ${{!round_bet}}
+	  </span>
+	{{!/pot}}
 
 	  <!-- Join/Buy in menu -->
 	  {{!#(state == 'empty' && !my_seat)}}
@@ -70,22 +85,18 @@ Loading
 
 	  <!-- User Display -->
 	  {{!#userid}}
-	  {{!name}} <br/>
-	  {{!money}}
-	  {{!state}}
-	  <br/>
+	  {{!name}} ${{!money}} <br/>
 	  {{!#hole_cards}}
 	  <img class="card-large" src="{{!get_card_url(.)}}"/>
 	  {{!/hole_cards}}
 	  <br/>
-	  {{!round_bet}}
+
 	  {{!/userid}}
-	  <!-- End User Display -->
+	  </div>
+
+	  {{!/seats}}
 	</div>
-      {{!/seats}}
-    </div>
-      </div>
-    <div class="pure-u-1-5">History</div>
+
   </div>
 {{!/game}}
 </script>
@@ -139,6 +150,12 @@ Loading
   var my_round_bet = this.get('my_seat').round_bet;
   if (my_round_bet == current) return 'check'
   return 'call ' + (current - my_round_bet);
+  },
+
+  maybe_my_seat_number: function() {
+  var my_seat = this.get('my_seat');
+  if(my_seat) return my_seat.seat_number;
+  return 0;
   }
 
   }
@@ -171,7 +188,7 @@ var send = connect({{gameid}}, receive);
 
 <!-- Buy in menu -->
 ractive.on('show_buyin_menu', function(event) {
-ractive.set('show_buyin_menu', event.index.seat_number);
+ractive.set('show_buyin_menu', event.context.seat_number);
 ractive.set('buy_in', ractive.get('game.min_buy_in'))
 console.log(event)
 });
@@ -187,12 +204,14 @@ var result = Math.max(next, ractive.get('game.min_buy_in'));
 ractive.set('buy_in', result);
 });
 
-ractive.on('buy_in', function(event) {
-send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.index.seat_number});
-});
 <!-- End Buy in menu -->
 
 <!-- Actions -->
+ractive.on('buy_in', function(event) {
+send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.context.seat_number});
+});
+
+
 ractive.on('fold', function(event) {
 send({'action':'fold'});
 });

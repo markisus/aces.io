@@ -28,3 +28,56 @@
 }
 
 
+.circle-container {
+    position: relative;
+    width: 50em;
+    height: 24em;
+    padding: 2.8em;
+    /*2.8em = 2em*1.4 (2em = half the width of a link with img, 1.4 = sqrt(2))*/
+    margin: 1.75em auto 0;
+}
+
+.circle-container .el {
+    display: block;
+    position: absolute;
+    top: 50%; left: 50%;
+    margin-top: -3em;
+    margin-left: -3em;
+}
+
+.seat {
+    width: 8em;
+    height: 8em;
+}
+.position0 { transform: translate(22em); } /* 12em = half the width of the wrapper */
+.position1 { transform: rotate(26deg) translate(20em) rotate(-26deg); }
+
+.position2 { transform: rotate(72deg) translate(12em) rotate(-72deg) translate(2em); }
+.position3 { transform: rotate(108deg) translate(12em) rotate(-108deg) translate(-1em); }
+
+.position4 { transform: rotate(154deg) translate(20em) rotate(-154deg); }
+.position5  { transform: rotate(180deg) translate(24em) rotate(-180deg); }
+.position6  { transform: rotate(206deg) translate(20em) rotate(-206deg); }
+.position7  { transform: rotate(252deg) translate(12em) rotate(-252deg) translate(-1.5em); }
+.position8  { transform: rotate(288deg) translate(12em) rotate(-288deg) translate(2em); }
+
+.position9  { transform: rotate(334deg) translate(20em) rotate(-334deg); }
+
+.table { 
+    transform: translate(-4em);
+}
+
+.actions {
+    transform: translate(-15em);
+    width: 8em;
+}
+
+.chips {
+    background-color: #32CD32;
+    padding: .5em;
+    border: .1em solid #228B22;
+    border-radius: .2em;
+    position: relative;
+    left: -2.5em;
+    top: 3.5em;
+}
