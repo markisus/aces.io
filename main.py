@@ -79,14 +79,25 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         self.try_start_next_phase()
 
     def try_start_next_phase(self):
+        print "Trying to start next phase"
         if self.game.can_start_next_phase():
+            print "Yes next phase can start"
             delay = 1
-            self.send_all_listeners({'action': 'phase_transitin_timer', 'delay': delay})
+            self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
             ioloop = tornado.ioloop.IOLoop.instance()
             def callback():
+                print "Transitioning to next phase"
+                previous = self.game._game['game_state']
                 transitioned = self.game.try_start_next_phase()
                 if transitioned:
+                    current = self.game._game['game_state']
+                    print previous, "->", current
                     self.force_all_clients_synchronize()
+                    # The game might still be stuck
+                    # Like last action of showdown will auto advance to waiting for players
+                    self.try_start_next_phase()
+                else:
+                    print "Something went wrong"
             ioloop.call_later(delay, callback)
 
     def make_synchronize_message(self):

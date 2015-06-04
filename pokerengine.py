@@ -1,5 +1,7 @@
 import copy
 import random
+import handranker
+from handranker import cards, suits, ranks
 
 just_joined = 'just_joined'
 ready = 'ready'
@@ -14,10 +16,6 @@ pre_flop = 'pre_flop'
 flop = 'flop'
 turn = 'turn'
 river = 'river'
-
-suits = "diamonds clubs hearts spades".split(" ")
-ranks = "2 3 4 5 6 7 8 9 10 jack queen king ace".split(" ")
-cards = [rank + "." + suit for rank in ranks for suit in suits]
 
 #todo move to util
 def next_greatest(current, candidates):
@@ -129,8 +127,6 @@ class Game:
 
     def kick_user(self, userid):
         def action(user_seat):
-            self._game['pot'] += user_seat['round_bet']
-            user_seat['round_bet'] = 0
             seat_number = user_seat['seat_number']
             folded = self.try_fold(user_seat['userid'])
             self._game['seats'][seat_number] = self._make_empty_seat(seat_number)
@@ -254,12 +250,17 @@ class Game:
 
         # Set Betting State
         current_state = self._game['game_state']
+        if current_state == river:
+            self._showdown()
+            return True
+
         next_states = {
             wait_for_players: pre_flop,
             pre_flop: flop,
             flop: turn,
             turn: river
         }
+
         current_state = next_states[current_state]
         self._game['game_state'] = current_state
         
@@ -287,6 +288,40 @@ class Game:
         )
 
         return True
+
+    def _showdown(self):
+        # Deep copy so that when we attach best hands we don't leak to the client
+        standing_seats = copy.deepcopy(self._get_still_standing_seats())
+        num_standing_seats = len(standing_seats)
+        for seat in standing_seats:
+            hand7 = seat['hole_cards'] + self._game['community_cards']
+            seat['best_hand'] = handranker.search(hand7)
+        standing_seats.sort(
+            cmp = lambda s1, s2: handranker.compare_hand_dicts(s1['best_hand'], s2['best_hand'])
+        )
+        max_total_bet = max((seat['total_bet'] for seat in standing_seats))
+        level = 0
+        winner_infos = []
+        while level < max_total_bet:
+            winner = standing_seats[-1]
+            winners = []
+            print winner
+            while handranker.compare_hand_dicts(
+                    standing_seats[-1]['best_hand'], winner['best_hand']) == 0:
+                winners.append(standing_seats.pop())
+            winners.sort(key=lambda seat: seat['total_bet'])
+            num_winners = len(winners)
+            for winner in winners:
+                winnings = 0
+                for seat in self._game['seats']:
+                    winnings += min(seat['total_bet'], winner['total_bet']) - level
+                winnings /= num_winners
+                self._game['seats'][winner['seat_number']]['money'] += winnings
+                winner_infos.append({'winner': winner, 'winnings': winnings})
+                num_winners -= 1
+            level = max((winner['total_bet'] for winner in winners))
+        self._game['win_screen'] = {'win_condition': 'showdown', 'winners': winner_infos}
+        self._reset_game()
 
     def _get_current_bet(self):
         bet = 0
@@ -333,7 +368,7 @@ class Game:
             pot_amount = self._game['pot']
             last_man_standing['money'] += pot_amount
             self._game['pot'] = 0
-            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing, 'win_amount': pot_amount}
+            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing, 'winnings': pot_amount}
             self._reset_game()
             return True
 
@@ -405,5 +440,4 @@ class GameLobby:
 
     def get_game(self, gameid):
         return self._games[gameid]
-
 

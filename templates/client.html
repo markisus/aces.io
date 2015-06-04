@@ -15,9 +15,6 @@ Loading
 {{!#game}}
   <h1 class="title">Game #{{gameid}}</h1>
   <div>
-      
-
-
 	<div class="circle-container">
 	    <div class="el table">
 	{{!#pot}}
@@ -30,14 +27,11 @@ Loading
 	{{!#community_cards}}
 	<img class="card-large" src="{{!get_card_url(.)}}"/>
 	{{!/community_cards}}
-
 	{{!#win_screen}}
 	{{!#(win_condition == 'last_man_standing')}}
 	{{!this.winner.name}} won {{!this.win_amount}}!
 	{{!/win_condition}}
 	{{!/win_screen}}
-	
-
 	    </div>
 
       <div class="el actions">
