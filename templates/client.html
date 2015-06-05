@@ -91,7 +91,7 @@ Loading
 	  {{!#(show_buyin_menu == seat_number)}}
 	  <button class="pure-button" on-click="buy_in_increase">+</button>
 	  <button class="pure-button" on-click="buy_in_decrease">-</button> <br/>
-	  <button class="pure-button pure-button-primary" on-click="buy_in">Buy In for {{!buy_in}}</button>
+	  <button class="pure-button pure-button-primary" on-click="buy_in">buy in for {{!buy_in}}</button>
 	  {{!/step2}}
 	  {{!/buyin_menu}}
 	  <!-- End buy in menu -->
@@ -270,6 +270,10 @@ ractive.set('raise_amount', result);
 
 ractive.on('hide_raise_menu', function(event) {
 ractive.set('raise_menu', false);
+});
+
+ractive.observe('is_my_turn', function(current, old, path) {
+if(!current) ractive.set('raise_menu', false);
 });
 
 <!-- Actions -->

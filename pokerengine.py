@@ -185,6 +185,14 @@ class Game:
     def _make_shuffled_deck():
         _cards = copy.deepcopy(cards)
         random.shuffle(_cards)
+
+        #Test deck
+        return [
+            '7.spades', '8.diamonds', 
+            '9.diamonds', '3.diamonds', 
+            '4.spades', '10.clubs', '5.diamonds', '5.clubs', 'jack.clubs'
+            ][::-1]
+
         return _cards
 
     def _try_start(self):
@@ -325,9 +333,10 @@ class Game:
         level = 0
         winner_infos = []
         while level < max_total_bet:
+            print "level is now ", level
             winner = standing_seats[-1]
             winners = []
-            while handranker.compare_hand_dicts(
+            while standing_seats and handranker.compare_hand_dicts(
                     standing_seats[-1]['best_hand'], winner['best_hand']) == 0:
                 winners.append(standing_seats.pop())
             winners.sort(key=lambda seat: seat['total_bet'])
