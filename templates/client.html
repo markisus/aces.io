@@ -74,10 +74,8 @@ Loading
 	{{!/is_my_turn}}
       </div>
 
-
-
 	  {{!#seats}}
-	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}}">
+	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}}">
 
 	    {{!#round_bet}}
 	<span class="chips">
@@ -104,11 +102,12 @@ Loading
 	  {{!#hole_cards}}
 	  <img class="card-large" src="{{!get_card_url(.)}}"/>
 	  {{!/hole_cards}}
-	  <br/>
-
 	  {{!/userid}}
-	  </div>
 
+	  <span class="last_move">
+	    {{!last_move}}
+	  </span>
+	  </div>
 	  {{!/seats}}
 	</div>
 

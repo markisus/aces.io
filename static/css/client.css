@@ -14,7 +14,7 @@
 }
 
 .active {
-    background-color: green;
+    background-color: CCFF99;
 }
 
 .card {
@@ -47,7 +47,6 @@
 
 .seat {
     width: 8em;
-    height: 8em;
 }
 .position0 { transform: translate(22em); } /* 12em = half the width of the wrapper */
 .position1 { transform: rotate(26deg) translate(20em) rotate(-26deg); }
@@ -74,15 +73,22 @@
 
 .chips {
     background-color: #32CD32;
-    padding: .5em;
+    padding: .1em;
     border: .1em solid #228B22;
-    border-radius: .2em;
+    border-radius: .4em;
     position: absolute;
-    left: -2.7em;
+    left: -2.2em;
     top: 2.5em;
 }
 
 .user {
     position:absolute;
     top: -1em;
+}
+
+.last_move {
+    position: absolute;
+    top: 6em;
+    left: 2em;
+    background-color: #FFFF99;
 }

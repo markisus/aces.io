@@ -69,6 +69,7 @@ class Game:
         seat['hole_cards'] = []
         seat['had_turn'] = False
         seat['seat_number'] = seat_number
+        seat['last_move'] = None
         return seat
 
     def get_seated_userids(self):
@@ -359,6 +360,7 @@ class Game:
         seat['money'] -= amount_to_bet
         if going_all_in:
             seat['state'] = all_in
+            seat['last_move'] = 'all in'
         else:
             seat['state'] = ready
         amount_raised = bet_after - bet_before
@@ -376,6 +378,7 @@ class Game:
             seat = self._find_seat_by_userid(userid)
             seat['state'] = folded
             seat['had_turn'] = True
+            seat['last_move'] = 'fold'
             self._end_turn()
             return True
 
@@ -415,6 +418,8 @@ class Game:
                 continue
             seat['had_turn'] = False
             seat['round_bet'] = 0
+            if seat['last_move'] not in ['fold', 'all in']:
+                seat['last_move'] = None
         self._game['min_raise'] = self._game['big_blind']
 
     def _reset_game(self):
@@ -425,6 +430,7 @@ class Game:
             seat['total_bet'] = 0
             seat['round_bet'] = 0
             seat['had_turn'] = False
+            seat['last_move'] = None
             if seat['state'] in [folded, all_in]:
                 seat['state'] = ready
             if seat['money'] == 0:
@@ -438,6 +444,10 @@ class Game:
         if self._is_user_active(userid):
             seat = self._find_seat_by_userid(userid)
             needed_to_call = self._get_current_bet() - seat['round_bet']
+            if needed_to_call == 0:
+                seat['last_move'] = 'check'
+            else:
+                seat['last_move'] = 'call'
             self._bet_or_all_in(seat, needed_to_call)
             seat['had_turn'] = True
             self._end_turn()
@@ -452,14 +462,17 @@ class Game:
                 # Raise does not meet min raise
                 return False
             needed_to_call = current_bet - round_bet
+            seat['last_move'] = 'raise'
             self._bet_or_all_in(seat, raise_amount + needed_to_call)
             seat['had_turn'] = True
+
             self._end_turn()
             return True
 
     def try_all_in(self, userid):
         if self._is_user_active(userid):
             seat = self._find_seat_by_userid(userid)
+            seat['last_move'] = 'all in'
             self._bet_or_all_in(seat, seat['money'])
             seat['had_turn'] = True
             self._end_turn()
