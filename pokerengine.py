@@ -47,6 +47,7 @@ class Game:
             'community_cards': [],
             'game_state': wait_for_players,
             'win_screen': None,
+            'win_queue': [],
             'transitioning': False,
         }
 
@@ -189,7 +190,7 @@ class Game:
         #Test deck
         return [
             '7.spades', '8.diamonds', 
-            '9.diamonds', '3.diamonds', 
+            '7.diamonds', '8.spades', 
             '4.spades', '10.clubs', '5.diamonds', '5.clubs', 'jack.clubs'
             ][::-1]
 
@@ -275,7 +276,11 @@ class Game:
             self._reset_round()
 
         if self.is_game_over():
-            self._reset_game()
+            # There may be more winners to display
+            if self._game['win_queue']:
+                self._award_next_winner()
+            else:
+                self._reset_game()
             return True
 
         current_state = self._game['game_state']
@@ -345,10 +350,22 @@ class Game:
                 for seat in self._game['seats']:
                     winnings += min(seat['total_bet'], winner['total_bet']) - level
                 winnings /= num_winners
-                self._game['seats'][winner['seat_number']]['money'] += winnings
                 winner_infos.append({'winner': winner, 'winnings': winnings})
             level = max((winner['total_bet'] for winner in winners))
-        self._game['win_screen'] = {'win_condition': 'showdown', 'winners': winner_infos}
+        self._game['win_screen'] = {'win_condition': 'showdown'}
+        self._game['win_queue'] = winner_infos
+        self._award_next_winner()
+
+    def _award_next_winner(self):
+        winners = self._game['win_queue']
+        win_info = winners.pop(0)
+        winnings = win_info['winnings']
+        self._game['win_screen'].update(win_info)
+        self._game['pot'] -= winnings
+        winner_seat = self._find_seat_by_userid(win_info['winner']['userid'])
+        if winner_seat:
+            winner_seat['money'] += winnings
+        
 
     def _get_current_bet(self):
         bet = 0
@@ -395,11 +412,10 @@ class Game:
             self._game['active_user_position'] = None
             last_man = still_standing_seats[0]
             self._make_pot()
-            pot_amount = self._game['pot']
-            last_man['money'] += pot_amount
-            self._game['pot'] = 0
-            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man, 'winnings': pot_amount}
+            self._game['win_screen'] = {'win_condition': 'last_man_standing'}
+            self._game['win_queue'].append({'winner': last_man, 'winnings': self._game['pot']})
             self._game['game_state'] = last_man_standing
+            self._award_next_winner()
             return True
 
     def _make_pot(self):
@@ -446,6 +462,8 @@ class Game:
         self._game['min_raise'] = 0
         self._game['pot'] = 0
         self._game['game_state'] = wait_for_players
+        self._game['win_queue'] = []
+        self._game['win_screen'] = None
 
     def try_call(self, userid):
         if self._is_user_active(userid):

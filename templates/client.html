@@ -1,7 +1,8 @@
 <head>
-<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+<link rel="stylesheet" href="{{static_url("css/pure-min.css")}}">
 <link rel="stylesheet" href="{{static_url("css/client.css")}}">
-<script src='http://cdn.ractivejs.org/latest/ractive.js'></script>
+<script src='{{static_url("js/ractive.js")}}'></script>
+<script src='{{static_url("js/ractive-transitions-slidehorizontal.js")}}'></script>
 </head>
 
 <body>
@@ -25,22 +26,21 @@ Loading
 
 	<!-- Community Cards --><br/>
 	{{!#community_cards}}
-	<img class="card-large" src="{{!get_card_url(.)}}"/>
+	<img intro-outro="slideh" class="card-large" src="{{!get_card_url(.)}}"/>
 	{{!/community_cards}}
 	{{!#win_screen}}
 	<br/>
 	{{!#(win_condition == 'last_man_standing')}}
-	{{!this.winner.name}} won {{!this.winnings}}!
+	{{!this.winner.name}} won <span class="winnings">{{!this.winnings}}</span>!
 	{{!/last_man_standing}}
 
 	{{!#(win_condition == 'showdown')}}
-	{{!#winners}}
-	{{!winner.name}} won <span class="winnings">{{!winnings}}</span> with <b>{{!winner.best_hand.type}}</b>
-	{{!#winner.best_hand.hand}}
+	{{!#winner}}
+	{{!name}} won <span class="winnings">{{!winnings}}</span> with {{!best_hand.type}}<br/>
+	{{!#best_hand.hand}}
 	<img class="card-small" src="{{!get_card_url(.)}}"/>
-	{{!/hand}}
-	<br/>
-	{{!/winners}}
+	{{!/best_hand}}
+	{{!/winner}}
 	{{!/showdown}}
 
 	{{!/win_screen}}
@@ -104,7 +104,7 @@ Loading
 	  {{!#userid}}
 	  <span class="user">{{!name}} ${{!money}}</span>
 	  {{!#hole_cards}}
-	  <img class="card-large" src="{{!get_card_url(.)}}"/>
+	    <img src="{{!get_card_url(.)}}" intro-outro="slideh" class="card-large"/>
 	  {{!/hole_cards}}
 	  {{!/userid}}
 
@@ -121,13 +121,18 @@ Loading
 
 <script src="{{ static_url("js/client.js")}}"></script>
 <script>
+ractive = undefined;
+var initialize_ractive = function(game, userid) {
 
-  var ractive = new Ractive({
+  ractive = new Ractive({
   el: '#content',
   template: '#template',
 
   data: {
+  game: game,
+userid: userid,
   get_card_url: function(card) {
+if(!card) card = 'unknown';
   if (card == 'unknown') return "{{ static_url('images/cards/blue-back.png') }}";
   var card_array = card.split('.');
   var rank = card_array[0];
@@ -152,6 +157,7 @@ Loading
 
   is_my_turn: function() {
   var my_seat = this.get('my_seat');
+if(!my_seat) return false;
   var active_user_position = this.get('game.active_user_position');
   var game_state = this.get('game.game_state');
   return my_seat.seat_number == active_user_position && game_state != 'wait_for_players';
@@ -205,31 +211,8 @@ Loading
 
   });
 
-
-
-<!-- Action handlers -->
-var synchronize_game = function(game) {
-ractive.set('game', game);
-ractive.set('buy_in_increment', game.min_buy_in/2);
-}
-var set_userid = function(userid) {
-console.log("setting userid", userid);
-ractive.set('userid', userid);
-}
-
-var receive = function(msg) {
-var msg = JSON.parse(msg);
-console.log(msg)
-var action = msg['action']
-if (action == "synchronize_game") synchronize_game(msg.game);
-if (action == "set_userid") set_userid(msg.userid);
-window.msg = msg
-}
-var send = connect({{gameid}}, receive);
-<!-- end action handlers -->
-
-
 <!-- Buy in menu -->
+ractive.set('buy_in_increment', game.min_buy_in/2);
 ractive.on('show_buyin_menu', function(event) {
 ractive.set('show_buyin_menu', event.context.seat_number);
 ractive.set('buy_in', ractive.get('game.min_buy_in'))
@@ -303,7 +286,34 @@ send({'action':'raise', 'raise_amount': raise_amount});
 ractive.on('all_in', function(event) {
 send({'action':'all_in'});
 });
-<!-- End Actions -->
+
+}
+
+<!-- Action handlers -->
+var synchronize_game = function(msg) {
+if(!ractive) {
+initialize_ractive(msg.game, msg.userid);
+}
+else {
+ractive.set('game', msg.game);
+
+}
+}
+
+
+var receive = function(msg) {
+var msg = JSON.parse(msg);
+console.log(msg)
+var action = msg['action']
+if (action == "synchronize_game") synchronize_game(msg);
+window.msg = msg
+}
+var send = connect({{gameid}}, receive);
+
+
+
+
+
 
 </script>
 

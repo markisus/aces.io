@@ -58,7 +58,6 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             if not self.game:
                 self.write_message({'error': 'Game does not exist'});
             else:
-                self.write_message({'action': 'set_userid', 'userid': self.userid})
                 self.force_client_synchronize()
         
         success = False
@@ -88,7 +87,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if self.game.can_start_next_phase():
             delay = .3
             if self.game.is_game_over():
-                delay = 9
+                delay = 4
             self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
             ioloop = tornado.ioloop.IOLoop.instance()
             def callback():
@@ -103,7 +102,11 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             ioloop.call_later(delay, callback)
 
     def make_synchronize_message(self):
-        return {'action': 'synchronize_game', 'game': self.game.make_facade_for_user(self.userid)}
+        return {
+            'action': 'synchronize_game', 
+            'game': self.game.make_facade_for_user(self.userid), 
+            'userid': self.userid 
+        }
 
     def force_client_synchronize(self):
         self.write_message(self.make_synchronize_message())
