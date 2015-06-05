@@ -16,6 +16,8 @@ pre_flop = 'pre_flop'
 flop = 'flop'
 turn = 'turn'
 river = 'river'
+reveal = 'reveal'
+last_man_standing = 'last_man_standing'
 
 #todo move to util
 def next_greatest(current, candidates):
@@ -77,19 +79,22 @@ class Game:
                 userids.add(userid)
         return userids
 
-    def join(self, userid, name, seat_number, buy_in):
+    def try_join(self, userid, name, seat_number, buy_in):
         game = self._game
         if not game:
-            return
+            return False
         if seat_number < 0 or seat_number >= len(game['seats']):
-            return
+            return False
         seat = game['seats'][seat_number]
         if userid in self.get_seated_userids():
-            return
+            return False
         if buy_in < game['min_buy_in']:
-            return
+            return False
         self._seat_user(seat_number, userid, name, buy_in)
-
+        return True
+    
+    def is_game_over(self):
+        return self._game['game_state'] in [last_man_standing, reveal]
 
     def get_id(self):
         return self._game['gameid']
@@ -104,11 +109,19 @@ class Game:
 
     def make_facade_for_user(self, userid):
         facade = copy.deepcopy(self._game)
+
+        still_standing_userids = self._extract_userids(
+            self._get_still_standing_seats()
+        )
+
         for seat in facade['seats']:
             seat_userid = seat.get('userid', None)
             if seat_userid != userid:
-               num_hole_cards = len(seat.get('hole_cards', []))
-               seat['hole_cards'] = num_hole_cards*['unknown']
+                should_reveal = self._game['game_state'] == reveal \
+                                and seat_userid in still_standing_userids
+                if not should_reveal:
+                    num_hole_cards = len(seat.get('hole_cards', []))
+                    seat['hole_cards'] = num_hole_cards*['unknown']
         del facade['deck']
         return facade
 
@@ -164,6 +177,10 @@ class Game:
         return map(lambda seat: seat['seat_number'], seats)
 
     @staticmethod
+    def _extract_userids(seats):
+        return map(lambda seat: seat['userid'], seats)
+
+    @staticmethod
     def _make_shuffled_deck():
         _cards = copy.deepcopy(cards)
         random.shuffle(_cards)
@@ -207,9 +224,9 @@ class Game:
             forcing_big_blind_seats = self._get_forcing_big_blind_seats()
             small_blind_seat = self._game['seats'][small_blind_position]
             big_blind_seat = self._game['seats'][big_blind_position]
-            self._bet_or_all_in(small_blind_seat, small_blind)
             for seat in [big_blind_seat] + forcing_big_blind_seats:
                 self._bet_or_all_in(seat, big_blind)
+            self._bet_or_all_in(small_blind_seat, small_blind)
 
             # Deal hole cards
             for seat in self._get_still_standing_seats():
@@ -248,21 +265,26 @@ class Game:
         if not just_started:
             self._reset_round()
 
-        # Set Betting State
-        current_state = self._game['game_state']
-        if current_state == river:
-            self._showdown()
+        if self.is_game_over():
+            self._reset_game()
             return True
+
+        current_state = self._game['game_state']
 
         next_states = {
             wait_for_players: pre_flop,
             pre_flop: flop,
             flop: turn,
-            turn: river
+            turn: river,
+            river: reveal,
         }
 
         current_state = next_states[current_state]
         self._game['game_state'] = current_state
+
+        if current_state == reveal:
+            self._showdown()
+            return True
         
         # Deal Community Cards
         num_community_cards = {
@@ -278,10 +300,8 @@ class Game:
 
         # Set UTG
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
-        print "utg potentials", utg_potentials
 
         big_blind_position = self._game['big_blind_position']
-        print "bb position", big_blind_position
 
         self._game['active_user_position'] = next_greatest(
             big_blind_position, utg_potentials
@@ -290,6 +310,7 @@ class Game:
         return True
 
     def _showdown(self):
+        self._game['active_user_position'] = None
         # Deep copy so that when we attach best hands we don't leak to the client
         standing_seats = copy.deepcopy(self._get_still_standing_seats())
         num_standing_seats = len(standing_seats)
@@ -305,7 +326,6 @@ class Game:
         while level < max_total_bet:
             winner = standing_seats[-1]
             winners = []
-            print winner
             while handranker.compare_hand_dicts(
                     standing_seats[-1]['best_hand'], winner['best_hand']) == 0:
                 winners.append(standing_seats.pop())
@@ -321,7 +341,6 @@ class Game:
                 num_winners -= 1
             level = max((winner['total_bet'] for winner in winners))
         self._game['win_screen'] = {'win_condition': 'showdown', 'winners': winner_infos}
-        self._reset_game()
 
     def _get_current_bet(self):
         bet = 0
@@ -343,7 +362,7 @@ class Game:
         else:
             seat['state'] = ready
         amount_raised = bet_after - bet_before
-        self._game['min_raise'] = min(self._game['min_raise'], amount_raised)
+        self._game['min_raise'] = max(self._game['min_raise'], amount_raised)
 
     def _is_user_active(self, userid):
         active_user_position = self._game['active_user_position']
@@ -363,13 +382,14 @@ class Game:
     def _try_award_last_man_standing(self):
         still_standing_seats = self._get_still_standing_seats()
         if len(still_standing_seats) == 1:
-            last_man_standing = still_standing_seats[0]
+            self._game['active_user_position'] = None
+            last_man = still_standing_seats[0]
             self._make_pot()
             pot_amount = self._game['pot']
-            last_man_standing['money'] += pot_amount
+            last_man['money'] += pot_amount
             self._game['pot'] = 0
-            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man_standing, 'winnings': pot_amount}
-            self._reset_game()
+            self._game['win_screen'] = {'win_condition': 'last_man_standing', 'winner': last_man, 'winnings': pot_amount}
+            self._game['game_state'] = last_man_standing
             return True
 
     def _make_pot(self):
@@ -395,6 +415,7 @@ class Game:
                 continue
             seat['had_turn'] = False
             seat['round_bet'] = 0
+        self._game['min_raise'] = self._game['big_blind']
 
     def _reset_game(self):
         for seat in self._game['seats']:
@@ -421,6 +442,29 @@ class Game:
             seat['had_turn'] = True
             self._end_turn()
             return True
+
+    def try_raise(self, userid, raise_amount):
+        if self._is_user_active(userid):
+            seat = self._find_seat_by_userid(userid)
+            current_bet = self._get_current_bet()
+            round_bet = seat['round_bet']
+            if raise_amount < self._game['min_raise']:
+                # Raise does not meet min raise
+                return False
+            needed_to_call = current_bet - round_bet
+            self._bet_or_all_in(seat, raise_amount + needed_to_call)
+            seat['had_turn'] = True
+            self._end_turn()
+            return True
+
+    def try_all_in(self, userid):
+        if self._is_user_active(userid):
+            seat = self._find_seat_by_userid(userid)
+            self._bet_or_all_in(seat, seat['money'])
+            seat['had_turn'] = True
+            self._end_turn()
+            return True
+            
                 
 class GameLobby:
     def __init__(self, room_size):

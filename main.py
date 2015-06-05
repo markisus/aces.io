@@ -61,43 +61,45 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
                 self.write_message({'action': 'set_userid', 'userid': self.userid})
                 self.force_client_synchronize()
         
+        success = False
         if action == 'buy_in':
-            self.game.join(self.userid, self.get_cookie('name'), data['seat_number'], data['buy_in'])
-            self.force_all_clients_synchronize()
+            success = self.game.try_join(self.userid, self.get_cookie('name'), data['seat_number'], data['buy_in'])
 
         if action == 'fold':
-            folded = self.game.try_fold(self.userid)
-            if folded:
-                self.force_all_clients_synchronize()
+            success = self.game.try_fold(self.userid)
 
         if action == 'call':
-            called = self.game.try_call(self.userid)
-            if called:
-                self.force_all_clients_synchronize()
+            success = self.game.try_call(self.userid)
+
+        if action == 'raise':
+            raise_amount = data['raise_amount']
+            success = self.game.try_raise(self.userid, raise_amount)
+
+        if action == 'all_in':
+            success = self.game.try_all_in(self.userid)
+
+        if success:
+            self.force_all_clients_synchronize()
 
         #Try transition
         self.try_start_next_phase()
 
     def try_start_next_phase(self):
-        print "Trying to start next phase"
         if self.game.can_start_next_phase():
-            print "Yes next phase can start"
-            delay = 1
+            delay = .3
+            if self.game.is_game_over():
+                delay = 2
             self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
             ioloop = tornado.ioloop.IOLoop.instance()
             def callback():
-                print "Transitioning to next phase"
                 previous = self.game._game['game_state']
                 transitioned = self.game.try_start_next_phase()
                 if transitioned:
                     current = self.game._game['game_state']
-                    print previous, "->", current
                     self.force_all_clients_synchronize()
                     # The game might still be stuck
                     # Like last action of showdown will auto advance to waiting for players
                     self.try_start_next_phase()
-                else:
-                    print "Something went wrong"
             ioloop.call_later(delay, callback)
 
     def make_synchronize_message(self):

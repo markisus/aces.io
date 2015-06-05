@@ -64,12 +64,12 @@
 .position9  { transform: rotate(334deg) translate(20em) rotate(-334deg); }
 
 .table { 
-    transform: translate(-4em);
+    transform: translate(-3em);
 }
 
 .actions {
-    transform: translate(-15em);
-    width: 8em;
+    transform: translate(-15.7em);
+    width: 12em;
 }
 
 .chips {
@@ -77,7 +77,12 @@
     padding: .5em;
     border: .1em solid #228B22;
     border-radius: .2em;
-    position: relative;
-    left: -2.5em;
-    top: 3.5em;
+    position: absolute;
+    left: -2.7em;
+    top: 2.5em;
+}
+
+.user {
+    position:absolute;
+    top: -1em;
 }

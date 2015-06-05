@@ -28,9 +28,17 @@ Loading
 	<img class="card-large" src="{{!get_card_url(.)}}"/>
 	{{!/community_cards}}
 	{{!#win_screen}}
+	<br/>
 	{{!#(win_condition == 'last_man_standing')}}
-	{{!this.winner.name}} won {{!this.win_amount}}!
-	{{!/win_condition}}
+	{{!this.winner.name}} won {{!this.winnings}}!
+	{{!/last_man_standing}}
+
+	{{!#(win_condition == 'showdown')}}
+	{{!#winners}}
+	{{!winner.name}} won {{!winnings}} with {{!winner.best_hand.type}}
+	{{!/winners}}
+	{{!/showdown}}
+
 	{{!/win_screen}}
 	    </div>
 
@@ -45,11 +53,24 @@ Loading
 	call (all-in)
 	raise-to (all-in)
 	-->
-	<br/>
 	{{!#is_my_turn}}
-	<button class="pure-button" on-click="fold">fold</button><br/>
-	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}}</button><br/>
-	<button class="pure-button pure-button-primary" on-click="raise_menu">Raise</button>
+	{{!^raise_menu}}
+	<button class="pure-button" on-click="fold">fold</button>
+	<button class="pure-button pure-button-primary" on-click="all_in">all In</button>
+	{{!#can_call}}
+	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}}</button>
+	{{!/can_call}}
+	{{!#can_raise}}
+	<button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
+	{{!/can_raise}}
+	{{!/hide_raise_menu}}
+
+	<!--  raise menu -->
+	{{!#raise_menu}}
+	<button class="pure-button" on-click="raise_increase">+</button>
+	<button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
+	<button class="pure-button pure-button-primary" on-click="raise">Raise to {{!current_bet + raise_amount}}</button><br/><br/>
+	{{!/raise_menu}}
 	{{!/is_my_turn}}
       </div>
 
@@ -79,7 +100,7 @@ Loading
 
 	  <!-- User Display -->
 	  {{!#userid}}
-	  {{!name}} ${{!money}} <br/>
+	  <span class="user">{{!name}} ${{!money}}</span>
 	  {{!#hole_cards}}
 	  <img class="card-large" src="{{!get_card_url(.)}}"/>
 	  {{!/hole_cards}}
@@ -140,17 +161,42 @@ Loading
   },
 
   call_check: function() {
-  var current = this.get('current_bet');
+  amount_needed_to_call = this.get('amount_needed_to_call');
+  if (amount_needed_to_call == 0) return 'check'
+  return 'call ' + (amount_needed_to_call);
+  },
+
+  amount_needed_to_call: function() {
+  var current_bet = this.get('current_bet');
   var my_round_bet = this.get('my_seat').round_bet;
-  if (my_round_bet == current) return 'check'
-  return 'call ' + (current - my_round_bet);
+  return current_bet - my_round_bet;
   },
 
   maybe_my_seat_number: function() {
   var my_seat = this.get('my_seat');
   if(my_seat) return my_seat.seat_number;
   return 0;
+  },
+
+  raise_increment: function() {
+  var min_raise = this.get('game.min_raise');
+  var big_blind = this.get('game.big_blind');
+  return Math.max(min_raise, big_blind);
+  },
+
+  can_raise: function() {
+  var amount_needed_to_call = this.get('amount_needed_to_call');
+  var min_raise = this.get('game.min_raise');
+  var my_seat = this.get('my_seat');
+  return my_seat.money >= amount_needed_to_call + min_raise;
+  },
+
+  can_call: function() {
+  var amount_needed_to_call = this.get('amount_needed_to_call');
+  var my_seat = this.get('my_seat');
+  return my_seat.money > amount_needed_to_call;
   }
+
 
   }
 
@@ -198,7 +244,34 @@ var result = Math.max(next, ractive.get('game.min_buy_in'));
 ractive.set('buy_in', result);
 });
 
-<!-- End Buy in menu -->
+<!-- Raise menu -->
+ractive.on('show_raise_menu', function(event) {
+ractive.set('raise_menu', true);
+ractive.set('raise_amount', ractive.get('game.min_raise'));
+});
+
+ractive.on('hide_raise_menu', function (event) {
+ractive.set('raise_menu', false);
+});
+
+ractive.on('raise_increase', function(event) {
+var my_seat = ractive.get('my_seat')
+var amount_needed_to_call = ractive.get('amount_needed_to_call');
+var next = ractive.get('raise_amount') + ractive.get('raise_increment');
+ractive.set('raise_amount', Math.min(my_seat.money - amount_needed_to_call, next));
+
+});
+
+ractive.on('raise_decrease', function(event) {
+var current = ractive.get('raise_amount');
+var next = current - ractive.get('raise_increment');
+var result = Math.max(next, ractive.get('game.min_raise'));
+ractive.set('raise_amount', result);
+});
+
+ractive.on('hide_raise_menu', function(event) {
+ractive.set('raise_menu', false);
+});
 
 <!-- Actions -->
 ractive.on('buy_in', function(event) {
@@ -214,7 +287,15 @@ ractive.on('call_check', function(event) {
 send({'action':'call'}); 
 });
 
+ractive.on('raise', function(event) {
+var raise_amount = ractive.get('raise_amount');
+send({'action':'raise', 'raise_amount': raise_amount});
+});
 
+
+ractive.on('all_in', function(event) {
+send({'action':'all_in'});
+});
 <!-- End Actions -->
 
 </script>
