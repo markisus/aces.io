@@ -88,7 +88,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if self.game.can_start_next_phase():
             delay = .3
             if self.game.is_game_over():
-                delay = 2
+                delay = 9
             self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
             ioloop = tornado.ioloop.IOLoop.instance()
             def callback():

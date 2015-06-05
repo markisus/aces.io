@@ -333,7 +333,6 @@ class Game:
         level = 0
         winner_infos = []
         while level < max_total_bet:
-            print "level is now ", level
             winner = standing_seats[-1]
             winners = []
             while standing_seats and handranker.compare_hand_dicts(
@@ -348,7 +347,6 @@ class Game:
                 winnings /= num_winners
                 self._game['seats'][winner['seat_number']]['money'] += winnings
                 winner_infos.append({'winner': winner, 'winnings': winnings})
-                num_winners -= 1
             level = max((winner['total_bet'] for winner in winners))
         self._game['win_screen'] = {'win_condition': 'showdown', 'winners': winner_infos}
 

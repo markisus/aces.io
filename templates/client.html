@@ -35,7 +35,11 @@ Loading
 
 	{{!#(win_condition == 'showdown')}}
 	{{!#winners}}
-	{{!winner.name}} won {{!winnings}} with {{!winner.best_hand.type}}
+	{{!winner.name}} won <span class="winnings">{{!winnings}}</span> with <b>{{!winner.best_hand.type}}</b>
+	{{!#winner.best_hand.hand}}
+	<img class="card-small" src="{{!get_card_url(.)}}"/>
+	{{!/hand}}
+	<br/>
 	{{!/winners}}
 	{{!/showdown}}
 

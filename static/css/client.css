@@ -17,9 +17,9 @@
     background-color: CCFF99;
 }
 
-.card {
-    width: 2em;
-    height: 3em;
+.card-small {
+    width: 3.5em;
+    height: 5.5em;
 }
 
 .card-large {
