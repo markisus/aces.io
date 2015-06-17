@@ -58,7 +58,11 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             if not self.game:
                 self.write_message({'error': 'Game does not exist'});
             else:
-                self.force_client_synchronize()
+                reconnected = self.game.try_reconnect(self.userid)
+                if reconnected:
+                    self.force_all_clients_synchronize()
+                else:
+                    self.force_client_synchronize()
         
         success = False
         if action == 'buy_in':
@@ -76,6 +80,9 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
 
         if action == 'all_in':
             success = self.game.try_all_in(self.userid)
+
+        if action == 'reconnect':
+            success = self.game.try_reconnect(self.userid)
 
         if success:
             self.force_all_clients_synchronize()
@@ -130,10 +137,11 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             listener.write_message(msg_factory(listener))
 
     def on_close(self):
-        result = self.game.kick_user(self.userid)
+        result = self.game.try_disconnect(self.userid)
         listeners[self.gameid].remove(self)
         listener_userids[self.gameid].remove(self.userid)
-        self.force_all_clients_synchronize()
+        if result:
+            self.force_all_clients_synchronize()
 
 application = tornado.web.Application(
     [

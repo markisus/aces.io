@@ -35,6 +35,9 @@
     height: 6em;
 }
 
+.disconnected {
+    background-color: FF4C4C;
+}
 
 .circle-container {
     position: relative;

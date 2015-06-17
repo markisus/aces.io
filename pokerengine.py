@@ -71,6 +71,7 @@ class Game:
         seat['had_turn'] = False
         seat['seat_number'] = seat_number
         seat['last_move'] = None
+        seat['disconnected'] = False
         return seat
 
     def get_seated_userids(self):
@@ -140,15 +141,23 @@ class Game:
         if user_seat:
             return action(user_seat)
 
-    def kick_user(self, userid):
+    def try_disconnect(self, userid):
         def action(user_seat):
             seat_number = user_seat['seat_number']
+            if self._game['game_state'] == wait_for_players:
+                user_seat.update(self._make_empty_seat(user_seat['seat_number']))
+                return True
             folded = self.try_fold(user_seat['userid'])
-            self._game['seats'][seat_number] = self._make_empty_seat(seat_number)
-            if not folded:
-                self._try_award_last_man_standing()
+            self._game['seats'][seat_number]['disconnected'] = True
             return True
         return self._do_if_user_exists(userid, action)
+
+    def try_reconnect(self, userid):
+        seat = self._find_seat_by_userid(userid)
+        if seat:
+            seat['disconnected'] = False
+            return True
+        return False
 
     def _get_prepared_seats(self):
         prepared_user_states = set((just_joined, ready, forcing_big_blind))
@@ -438,7 +447,11 @@ class Game:
                 active_user_position, next_active_positions
             )
             self._game['active_user_position'] = next_active_position
-        
+            if next_active_position:
+                active_user = self._game['seats'][next_active_position]
+                if active_user['disconnected']:
+                    self.try_fold(active_user['userid'])
+            
     def _reset_round(self):
         self._make_pot()
         for seat in self._game['seats']:
@@ -452,6 +465,8 @@ class Game:
 
     def _reset_game(self):
         for seat in self._game['seats']:
+            if seat['disconnected']:
+                seat.update(self._make_empty_seat(seat['seat_number']))
             if seat['state'] == empty:
                 continue
             seat['hole_cards'] = []

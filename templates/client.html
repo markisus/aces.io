@@ -81,7 +81,7 @@ Loading
 
 	  {{!#seats}}
 	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}} {{!#(win_screen && userid == win_screen.winner.userid)}}winner{{!/winner}}">
-	    
+	    {{!#disconnected}}<span class="disconnected">Disconnected</span>{{!/disconnected}}
 
 	    {{!#round_bet}}
 	<span class="chips">
