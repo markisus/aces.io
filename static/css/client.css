@@ -17,9 +17,17 @@
     background-color: CCFF99;
 }
 
+.folded {
+    opacity: .5;
+}
+
+.winner {
+    background-color: 99FFFF;
+}
+
 .card-small {
-    width: 3.2em;
-    height: 5.4em;
+    width: 3.0em;
+    height: 5.2em;
 }
 
 .card-large {
@@ -64,7 +72,7 @@
 .position9  { transform: rotate(334deg) translate(20em) rotate(-334deg); }
 
 .table { 
-    transform: translate(-7em) rotate(90deg) translate(-4.2em) rotate(-90deg);
+    transform: translate(-5.5em) rotate(90deg) translate(-4.2em) rotate(-90deg);
 }
 
 .actions {

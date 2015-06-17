@@ -314,12 +314,17 @@ class Game:
 
         # Set UTG
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
+        if len(utg_potentials) == 1:
+            # This can when everyone is all-in except one caller
+            # Then in the next round the caller would play himself only
+            # So do a check to avoid this
+            self._game['active_user_position'] = None
+        else:
+            big_blind_position = self._game['big_blind_position']
 
-        big_blind_position = self._game['big_blind_position']
-
-        self._game['active_user_position'] = next_greatest(
-            big_blind_position, utg_potentials
-        )
+            self._game['active_user_position'] = next_greatest(
+                big_blind_position, utg_potentials
+            )
 
         return True
 

@@ -20,7 +20,7 @@ Loading
 	    <div class="el table">
 	{{!#pot}}
 	<span class="chips">
-	  ${{!pot}}
+	  ${{!pot.toFixed(0)}}
 	  </span>
 	{{!/pot}}
 
@@ -30,6 +30,7 @@ Loading
 	{{!/community_cards}}
 	{{!#win_screen}}
 	<br/>
+	<span class="winner">
 	{{!#(win_condition == 'last_man_standing')}}
 	{{!this.winner.name}} won <span class="winnings">{{!this.winnings}}</span>!
 	{{!/last_man_standing}}
@@ -42,7 +43,7 @@ Loading
 	{{!/best_hand}}
 	{{!/winner}}
 	{{!/showdown}}
-
+	</span>
 	{{!/win_screen}}
 	    </div>
 
@@ -79,11 +80,12 @@ Loading
       </div>
 
 	  {{!#seats}}
-	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}}">
+	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}} {{!#(win_screen && userid == win_screen.winner.userid)}}winner{{!/winner}}">
+	    
 
 	    {{!#round_bet}}
 	<span class="chips">
-	  ${{!round_bet}}
+	  ${{!round_bet.toFixed(0)}}
 	  </span>
 	{{!/pot}}
 
@@ -102,7 +104,7 @@ Loading
 
 	  <!-- User Display -->
 	  {{!#userid}}
-	  <span class="user">{{!name}} ${{!money}}</span>
+	  <span class="user">{{!name}} ${{!money.toFixed(0)}}</span>
 	  {{!#hole_cards}}
 	    <img src="{{!get_card_url(.)}}" intro-outro="slideh" class="card-large"/>
 	  {{!/hole_cards}}
@@ -139,9 +141,19 @@ if(!card) card = 'unknown';
   var suit = card_array[1];
   return "{{ static_url('images/cards/') }}" + suit + "/" + rank + ".svg";
   }
+
   },
 
   computed: {
+
+can_i_bet_later: function() {
+var game_state = this.get('game.game_state');
+var current_bet = this.get('current_bet');
+var seat = this.get('my_seat');
+var is_my_turn = this.get('is_my_turn');
+var can_bet = (seat.state == 'ready' && seat.round_bet < current_bet) || !seat.had_turn;
+return (game_state != 'wait_for_players') && !is_my_turn && can_bet;
+},
   
   seated_userids: function() {
   return this.get('game.seats').map(function(seat){ return seat.userid });
@@ -309,11 +321,6 @@ if (action == "synchronize_game") synchronize_game(msg);
 window.msg = msg
 }
 var send = connect({{gameid}}, receive);
-
-
-
-
-
 
 </script>
 
