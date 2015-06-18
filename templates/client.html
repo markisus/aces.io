@@ -47,7 +47,9 @@ Loading
 	{{!/win_screen}}
 	    </div>
 
-      <div class="el actions">
+      <div class="el">
+	<div class="actions">
+	  <span>
 	{{!#can_i_bet_later}}
 	<!-- Auto action 
 	check check-fold call-any
@@ -76,10 +78,10 @@ Loading
 
 	{{!#is_my_turn}}
 	{{!^raise_menu}}
-	{{!#call_check=='call'}}<button class="pure-button" on-click="fold">fold</button>{{!/display_fold}}
-	<button class="pure-button pure-button-primary" on-click="all_in">all In</button>
+	{{!#call_check=='call'}}<button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{!/display_fold}}
+	<button class="pure-button pure-button-primary" on-click="all_in">all In</button><br/>
 	{{!#can_call}}
-	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}} {{!#amount_needed_to_call>0}}{{!amount_needed_to_call}}{{!/amt}}</button>
+	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}} {{!#amount_needed_to_call>0}}{{!amount_needed_to_call}}{{!/amt}}</button><br/>
 	{{!/can_call}}
 	{{!#can_raise}}
 	<button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
@@ -90,9 +92,11 @@ Loading
 	{{!#raise_menu}}
 	<button class="pure-button" on-click="raise_increase">+</button>
 	<button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
-	<button class="pure-button pure-button-primary" on-click="raise">Raise to {{!current_bet + raise_amount}}</button><br/><br/>
+	<button class="pure-button pure-button-primary" on-click="raise">raise to {{!current_bet + raise_amount}}</button><br/><br/>
 	{{!/raise_menu}}
 	{{!/is_my_turn}}
+	  </span>
+	</div>
       </div>
 
 	  {{!#seats}}

@@ -70,7 +70,7 @@
 .position2 { transform: rotate(72deg) translate(12em) rotate(-72deg) translate(2em); }
 .position3 { transform: rotate(108deg) translate(12em) rotate(-108deg) translate(-3.5em); }
 
-.position4 { transform: rotate(154deg) translate(20em) rotate(-154deg); }
+.position4 { transform: rotate(149deg) translate(21em) rotate(-149deg); }
 .position5  { transform: rotate(180deg) translate(24em) rotate(-180deg); }
 .position6  { transform: rotate(206deg) translate(20em) rotate(-206deg); }
 .position7  { transform: rotate(252deg) translate(12em) rotate(-252deg) translate(-1.5em); }
@@ -83,9 +83,11 @@
 }
 
 .actions {
-    transform: translate(-15.7em);
-    width: 12em;
+    position: absolute;
+    left: -15.9em;
+    top: -0em;
 }
+
 
 .chips {
     background-color: #32CD32;
