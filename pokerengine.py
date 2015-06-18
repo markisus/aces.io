@@ -237,9 +237,16 @@ class Game:
             forcing_big_blind_seats = self._get_forcing_big_blind_seats()
             small_blind_seat = self._game['seats'][small_blind_position]
             big_blind_seat = self._game['seats'][big_blind_position]
+
+            paid_big_blind = set()
             for seat in [big_blind_seat] + forcing_big_blind_seats:
+                if seat['userid'] in paid_big_blind:
+                    continue
                 self._bet_or_all_in(seat, big_blind)
-            self._bet_or_all_in(small_blind_seat, small_blind)
+                paid_big_blind.add(seat['userid'])
+            
+            if small_blind_seat['userid'] not in paid_big_blind:
+                self._bet_or_all_in(small_blind_seat, small_blind)
 
             # Deal hole cards
             for seat in self._get_still_standing_seats():
