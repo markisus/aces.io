@@ -28,8 +28,15 @@ def next_greatest(current, candidates):
     else:
         return min(greater or less)
 
+
+def make_shuffled_deck():
+    _cards = copy.deepcopy(cards)
+    random.shuffle(_cards)
+    return _cards
+
 class Game:
-    def __init__(self, gameid, room_size):
+    def __init__(self, gameid, room_size, make_deck=make_shuffled_deck):
+        self._make_shuffled_deck = make_deck
         self._game = {
             'gameid': gameid,
             'seats': [],
@@ -191,19 +198,6 @@ class Game:
     def _extract_userids(seats):
         return map(lambda seat: seat['userid'], seats)
 
-    @staticmethod
-    def _make_shuffled_deck():
-        _cards = copy.deepcopy(cards)
-        random.shuffle(_cards)
-
-        #TODO: put this object in a testing code
-        two_person_tie_deck =  [
-            '7.spades', '8.diamonds', 
-            '7.diamonds', '8.spades', 
-            '4.spades', '10.clubs', '5.diamonds', '5.clubs', 'jack.clubs'
-            ][::-1]
-
-        return _cards
 
     def _try_start(self):
         if self._can_start():
@@ -345,6 +339,11 @@ class Game:
         for seat in standing_seats:
             hand7 = seat['hole_cards'] + self._game['community_cards']
             seat['best_hand'] = handranker.search(hand7)
+
+        # stable sort / lexical sort (hand score, total bet)
+        standing_seats.sort(
+            key = lambda s: -s['total_bet']
+        )
         standing_seats.sort(
             cmp = lambda s1, s2: handranker.compare_hand_dicts(s1['best_hand'], s2['best_hand'])
         )
@@ -357,15 +356,18 @@ class Game:
             while standing_seats and handranker.compare_hand_dicts(
                     standing_seats[-1]['best_hand'], winner['best_hand']) == 0:
                 winners.append(standing_seats.pop())
-            winners.sort(key=lambda seat: seat['total_bet'])
             num_winners = len(winners)
             for winner in winners:
                 winnings = 0
                 for seat in self._game['seats']:
+                    if seat['total_bet'] <= level:
+                        continue
                     winnings += min(seat['total_bet'], winner['total_bet']) - level
                 winnings /= num_winners
                 winner_infos.append({'winner': winner, 'winnings': winnings})
             level = max((winner['total_bet'] for winner in winners))
+            standing_seats = [seat for seat in standing_seats if seat['total_bet'] > level]
+
         self._game['win_screen'] = {'win_condition': 'showdown'}
         self._game['win_queue'] = winner_infos
         self._award_next_winner()
