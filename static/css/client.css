@@ -9,6 +9,10 @@
     text-align: center;
 }
 
+.button-selected {
+    background-color: 787C81;
+}
+
 .seat {
 
 }

@@ -48,22 +48,38 @@ Loading
 	    </div>
 
       <div class="el actions">
+	{{!#can_i_bet_later}}
 	<!-- Auto action 
 	check check-fold call-any
 	fold call money, call any
 	-->
+	{{!#call_check == 'check'}}
+	<!-- Remark: here a check's value is "call" because a check is a call of 0 -->
+	<button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">check</button><br/>
+	<button class="pure-button {{!# auto_action == 'check_fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
+	<button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
+	{{!/check}}
+
+	{{!#call_check == 'call'}}
+	<button class="pure-button {{!# auto_action == 'fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="fold">fold</button><br/>
+	<button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">call {{!amount_needed_to_call}}</button><br/>
+	<button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
+	{{!/call}}
+	{{!/can_i_bet_later}}
+
 	<!-- Action 
 	fold
 	check
 	call (all-in)
 	raise-to (all-in)
 	-->
+
 	{{!#is_my_turn}}
 	{{!^raise_menu}}
-	<button class="pure-button" on-click="fold">fold</button>
+	{{!#call_check=='call'}}<button class="pure-button" on-click="fold">fold</button>{{!/display_fold}}
 	<button class="pure-button pure-button-primary" on-click="all_in">all In</button>
 	{{!#can_call}}
-	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}}</button>
+	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}} {{!#amount_needed_to_call>0}}{{!amount_needed_to_call}}{{!/amt}}</button>
 	{{!/can_call}}
 	{{!#can_raise}}
 	<button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
@@ -146,13 +162,22 @@ if(!card) card = 'unknown';
 
   computed: {
 
+is_any_user_active: function() {
+var active_user_position = this.get('game.active_user_position');
+return (active_user_position != undefined);
+},
+
 can_i_bet_later: function() {
+if(!this.get('game')) return false;
 var game_state = this.get('game.game_state');
 var current_bet = this.get('current_bet');
 var seat = this.get('my_seat');
+if(!seat) return false;
 var is_my_turn = this.get('is_my_turn');
-var can_bet = (seat.state == 'ready' && seat.round_bet < current_bet) || !seat.had_turn;
-return (game_state != 'wait_for_players') && !is_my_turn && can_bet;
+var can_bet = seat.state == 'ready' && (seat.round_bet < current_bet || !seat.had_turn);
+var winner = this.get('game.winner')
+var any_user_active = this.get('is_any_user_active');
+return any_user_active && (game_state != 'wait_for_players') && !is_my_turn && can_bet;
 },
   
   seated_userids: function() {
@@ -184,7 +209,7 @@ if(!my_seat) return false;
   call_check: function() {
   amount_needed_to_call = this.get('amount_needed_to_call');
   if (amount_needed_to_call == 0) return 'check'
-  return 'call ' + (amount_needed_to_call);
+  return 'call'
   },
 
   amount_needed_to_call: function() {
@@ -226,9 +251,9 @@ if(!my_seat) return false;
 <!-- Buy in menu -->
 ractive.set('buy_in_increment', game.min_buy_in/2);
 ractive.on('show_buyin_menu', function(event) {
-ractive.set('show_buyin_menu', event.context.seat_number);
-ractive.set('buy_in', ractive.get('game.min_buy_in'))
-console.log(event)
+ ractive.set('show_buyin_menu', event.context.seat_number);
+ ractive.set('buy_in', ractive.get('game.min_buy_in'))
+ console.log(event)
 });
 
 ractive.on('buy_in_increase', function(event) {
@@ -273,13 +298,40 @@ ractive.set('raise_menu', false);
 
 ractive.observe('is_my_turn', function(current, old, path) {
 if(!current) ractive.set('raise_menu', false);
+if(current) {
+var auto_action = ractive.get('auto_action');
+var amount_needed = ractive.get('amount_needed_to_call');
+if(auto_action == 'call_any') {
+send({'action':'call'});
+}
+if(auto_action == 'call') {
+var auto_call_amount = this.get('auto_call_amount');
+if(auto_call_amount >= amount_needed) send({'action':'call'});
+}
+if(auto_action == 'fold') {
+send({'action':'fold'});
+}
+if(auto_action == 'check_fold') {
+if(amount_needed == 0) { send({'action':'call'})}
+else { send({'action':'fold'})}
+}
+}
+});
+
+//Reset auto action
+ractive.observe('amount_needed_to_call', function(current, old) {
+var auto_action = this.get('auto_action');
+if(current > old && auto_action == 'call') this.set('auto_action', '');
+});
+
+ractive.observe('game.game_state', function(current, old) {
+this.set('auto_action', '');
 });
 
 <!-- Actions -->
 ractive.on('buy_in', function(event) {
 send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.context.seat_number});
 });
-
 
 ractive.on('fold', function(event) {
 send({'action':'fold'});
@@ -294,12 +346,26 @@ var raise_amount = ractive.get('raise_amount');
 send({'action':'raise', 'raise_amount': raise_amount});
 });
 
-
 ractive.on('all_in', function(event) {
 send({'action':'all_in'});
 });
 
+ractive.on('auto_action', function(event) {
+var new_action = event.node.value;
+var current_action = this.get('auto_action');
+if(current_action == new_action) {
+this.set('auto_action', '') }
+else {
+this.set('auto_action', new_action);
 }
+if (new_action == 'call') {
+var amount_needed = this.get('amount_needed_to_call');
+this.set('auto_call_amount', amount_needed);
+}
+});
+
+
+}<!-- End initialize ractive -->
 
 <!-- Action handlers -->
 var synchronize_game = function(msg) {

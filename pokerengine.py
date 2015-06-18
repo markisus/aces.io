@@ -196,8 +196,8 @@ class Game:
         _cards = copy.deepcopy(cards)
         random.shuffle(_cards)
 
-        #Test deck
-        return [
+        #TODO: put this object in a testing code
+        two_person_tie_deck =  [
             '7.spades', '8.diamonds', 
             '7.diamonds', '8.spades', 
             '4.spades', '10.clubs', '5.diamonds', '5.clubs', 'jack.clubs'
