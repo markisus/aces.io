@@ -1,1 +1,1 @@
-web: python main.py --port 80
+web: python main.py --port $PORT
