@@ -165,5 +165,9 @@ application = tornado.web.Application(
 )
 
 if __name__ == "__main__":
-    application.listen(8888)
+    import argparse
+    parser = argparse.ArgumentParser(description="aces.io")
+    parser.add_argument('--port', dest='P', type=int, help='port number to listen on', default=8888)
+    args = parser.parse_args()
+    application.listen(args.P)
     tornado.ioloop.IOLoop.current().start()
