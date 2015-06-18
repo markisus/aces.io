@@ -261,7 +261,11 @@ ractive.on('show_buyin_menu', function(event) {
 });
 
 ractive.on('buy_in_increase', function(event) {
-ractive.add('buy_in', ractive.get('buy_in_increment'));
+var current = this.get('buy_in');
+var cap = this.get('game.max_buy_in');
+var next = current + this.get('buy_in_increment');
+var result = Math.min(next, cap);
+ractive.set('buy_in', result);
 });
 
 ractive.on('buy_in_decrease', function(event) {

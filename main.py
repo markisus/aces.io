@@ -13,13 +13,20 @@ lobby = pokerengine.GameLobby(room_size)
 listeners = defaultdict(set)
 listener_userids = defaultdict(set)
 
+
+def get_name(handler):
+    name = handler.get_cookie('name', '')
+    name = unquote(name).strip()
+    name = name or "no-name"
+    return name
+
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         userid = self.get_cookie('userid', None)
         if not userid:
             self.set_cookie('userid', str(uuid.uuid4()))
-        name = self.get_cookie('name', '?')
-        name = unquote(name)
+        
+        name = get_name(self)
 
         self.render("index.html", name=name, games=lobby.get_summary(), room_size=room_size)
 
@@ -66,7 +73,8 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         
         success = False
         if action == 'buy_in':
-            success = self.game.try_join(self.userid, self.get_cookie('name'), data['seat_number'], data['buy_in'])
+            name = get_name(self)
+            success = self.game.try_join(self.userid, name, data['seat_number'], data['buy_in'])
 
         if action == 'fold':
             success = self.game.try_fold(self.userid)

@@ -43,6 +43,7 @@ class Game:
             'room_size': room_size,
             'min_raise': 0,
             'min_buy_in': 20,
+            'max_buy_in': 100,
             'small_blind': 1,
             'big_blind': 2,
             'dealer_position': 0,
@@ -91,14 +92,13 @@ class Game:
 
     def try_join(self, userid, name, seat_number, buy_in):
         game = self._game
-        if not game:
-            return False
         if seat_number < 0 or seat_number >= len(game['seats']):
             return False
-        seat = game['seats'][seat_number]
         if userid in self.get_seated_userids():
             return False
         if buy_in < game['min_buy_in']:
+            return False
+        if buy_in > game['max_buy_in']:
             return False
         self._seat_user(seat_number, userid, name, buy_in)
         return True
@@ -115,7 +115,7 @@ class Game:
         seat['userid'] = userid
         seat['name'] = name
         seat['money'] = money
-        seat['state'] = just_joined
+        seat['state'] = forcing_big_blind
 
     def make_facade_for_user(self, userid):
         facade = copy.deepcopy(self._game)
@@ -467,8 +467,9 @@ class Game:
 
     def _reset_game(self):
         for seat in self._game['seats']:
+            empty = self._make_empty_seat(seat['seat_number'])
             if seat['disconnected']:
-                seat.update(self._make_empty_seat(seat['seat_number']))
+                seat.update(empty)
             if seat['state'] == empty:
                 continue
             seat['hole_cards'] = []
@@ -479,7 +480,9 @@ class Game:
             if seat['state'] in [folded, all_in]:
                 seat['state'] = ready
             if seat['money'] == 0:
-                seat['state'] = busted
+                # For now when someone busts, they just get kicked
+                # seat['state'] = busted
+                seat.update(empty)
         self._game['community_cards'] = []
         self._game['min_raise'] = 0
         self._game['pot'] = 0
