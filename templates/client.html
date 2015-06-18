@@ -159,7 +159,7 @@ if(!card) card = 'unknown';
   var card_array = card.split('.');
   var rank = card_array[0];
   var suit = card_array[1];
-  return "{{ static_url('images/cards/') }}" + suit + "/" + rank + ".svg";
+  return "{{ static_url('images/cards/compact/') }}" + suit + "/" + rank + ".svg";
   }
 
   },
