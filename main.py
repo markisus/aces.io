@@ -150,6 +150,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         listener_userids[self.gameid].remove(self.userid)
         if result:
             self.force_all_clients_synchronize()
+            self.try_start_next_phase()
 
 application = tornado.web.Application(
     [
