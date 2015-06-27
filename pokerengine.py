@@ -106,6 +106,9 @@ class Game:
     def is_game_over(self):
         return self._game['game_state'] in [last_man_standing, reveal]
 
+    def get_game_state(self):
+        return self._game['game_state']
+
     def get_id(self):
         return self._game['gameid']
 

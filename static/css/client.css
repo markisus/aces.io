@@ -39,6 +39,15 @@
     height: 6em;
 }
 
+.win-card {
+    background-color: 99FFFF;
+    box-shadow: .5em .5em .5em #888888;
+    margin-top: -1em;
+}
+
+.lose-card {
+    opacity: .1;
+}
 .disconnected {
     background-color: FF4C4C;
 }
