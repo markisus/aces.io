@@ -42,7 +42,7 @@ def high_rank(some_ranks):
 def _make_straight_ranks(high_rank):
     straight_ranks = set()
     current_rank = high_rank
-    for i in range(4):
+    for i in range(5):
         straight_ranks.add(current_rank)
         current_rank = add_rank(current_rank, -1)
     return straight_ranks
