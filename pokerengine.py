@@ -343,40 +343,41 @@ class Game:
 
     def _showdown(self):
         self._game['active_user_position'] = None
-        # Deep copy so that when we attach best hands we don't leak to the client
-        standing_seats = copy.deepcopy(self._get_still_standing_seats())
-        num_standing_seats = len(standing_seats)
+        best_hands = dict()
+        standing_seats = self._get_still_standing_seats()
         for seat in standing_seats:
             hand7 = seat['hole_cards'] + self._game['community_cards']
-            seat['best_hand'] = handranker.search(hand7)
+            best_hands[seat['userid']] = handranker.search(hand7)
 
         # stable sort / lexical sort (hand score, total bet)
         standing_seats.sort(
             key = lambda s: -s['total_bet']
         )
         standing_seats.sort(
-            cmp = lambda s1, s2: handranker.compare_hand_dicts(s1['best_hand'], s2['best_hand'])
+            cmp = lambda s1, s2: handranker.compare_hand_dicts(
+                best_hands[s1['userid']], best_hands[s2['userid']])
         )
-        max_total_bet = max((seat['total_bet'] for seat in standing_seats))
-        level = 0
         winner_infos = []
-        while level < max_total_bet:
+        while standing_seats:
             winner = standing_seats[-1]
             winners = []
             while standing_seats and handranker.compare_hand_dicts(
-                    standing_seats[-1]['best_hand'], winner['best_hand']) == 0:
+                    best_hands[standing_seats[-1]['userid']], 
+                    best_hands[winner['userid']]) == 0:
                 winners.append(standing_seats.pop())
             num_winners = len(winners)
             for winner in winners:
+                winner['best_hand'] = best_hands[winner['userid']]
                 winnings = 0
+                winner_bet = winner['total_bet']
                 for seat in self._game['seats']:
-                    if seat['total_bet'] <= level:
-                        continue
-                    winnings += min(seat['total_bet'], winner['total_bet']) - level
-                winnings /= num_winners
+                    gains = min(seat['total_bet'], winner_bet)/num_winners
+                    seat['total_bet'] -= gains
+                    winnings += gains
                 winner_infos.append({'winner': winner, 'winnings': winnings})
-            level = max((winner['total_bet'] for winner in winners))
-            standing_seats = [seat for seat in standing_seats if seat['total_bet'] > level]
+                num_winners -= 1
+            standing_seats = [seat for seat in standing_seats if seat['total_bet'] > 0]
+            #print "remaining winner:", standing_seats
 
         self._game['win_screen'] = {'win_condition': 'showdown'}
         self._game['win_queue'] = winner_infos
