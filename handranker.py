@@ -121,7 +121,7 @@ def find_three_of_a_kind(hand):
     trips = most_valuable_multiples(hand, 3)
     if trips:
         rank = get_rank(trips[0])
-        rest = islice((card for card in hand if card not in trips), 3)
+        rest = islice((card for card in hand if card not in trips), 2)
         trips += list(rest)
         return {'hand': trips, 'type': 'three of a kind', 'rank': rank}
 
