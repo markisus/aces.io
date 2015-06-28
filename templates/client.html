@@ -407,7 +407,10 @@ if (action == "synchronize_game") synchronize_game(msg);
 window.msg = msg
 }
 var send = connect({{gameid}}, receive);
-
+setInterval(function() {
+    console.log("Pinging")
+    send({'action': 'ping'});
+}, 40000)
 </script>
 
 </body>
