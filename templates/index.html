@@ -4,17 +4,15 @@ Aces.io <br/>
 <br/><br/>
 Current name: {{name}}
 
-<form method="post">
-{% module xsrf_form_html() %}
-<input type="text" name="name"/>
-<input type="submit" value="Set Name">
+<form method="post" action="/change_name">
+  {% module xsrf_form_html() %}
+  <input type="text" name="name"/>
+  <input type="submit" value="Set Name"/>
 </form>
 
 <br/>
 
-Games <br/>
-<ul>
-{% for game in games %}
-<li>Room #{{game['gameid']}}: {{game['num_users']}}/{{room_size}} <a href="/game/{{game['gameid']}}">Join</a></li>
-{% end %}
-</ul>
+<form method="post" action="/new_game">
+  {% module xsrf_form_html() %}
+  <input type="submit" value="New Game"/>
+</form>

@@ -46,8 +46,9 @@
 }
 
 .lose-card {
-    opacity: .1;
+    opacity: .4;
 }
+
 .disconnected {
     background-color: FF4C4C;
 }

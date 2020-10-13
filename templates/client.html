@@ -3,111 +3,123 @@
 <link rel="stylesheet" href="{{static_url("css/client.css")}}">
 <script src='{{static_url("js/ractive.js")}}'></script>
 <script src='{{static_url("js/ractive-transitions-slidehorizontal.js")}}'></script>
+
+<script>
+function copyURL() {
+navigator.clipboard.writeText(window.location.href);
+}
+</script>
+
 </head>
 
 <body>
-<div id="content" class="content"></div>
+  <div id="content" class="content"></div>
 
-<script id='template' type='text/ractive'>
-{{!^game}}
-Loading
-{{!/game}}
+  
 
-{{!#game}}
-  <h1 class="title">Game #{{gameid}}</h1>
-  <div>
-	<div class="circle-container">
-	    <div class="el table">
-	{{!#pot}}
-	<span class="chips">
-	  ${{!pot.toFixed(0)}}
+  <script id='template' type='text/ractive'>
+    {{!^game}}
+    Loading
+    {{!/game}}
+
+    {{!#game}}
+
+    <br/>
+    <h3>
+      <button onclick="copyURL()">📋 Copy Game Address</button>
+    <div>
+      <div class="circle-container">
+	<div class="el table">
+	  {{!#pot}}
+	  <span class="chips">
+	    ${{!pot.toFixed(0)}}
 	  </span>
-	{{!/pot}}
+	  {{!/pot}}
 
-	<!-- Community Cards --><br/>
-	{{!#community_cards}}
-    <span class="{{!#is_win_card(.)}}win-card{{!/win_card}} {{!#is_lose_card(.)}}lose-card{{!/lose}}">
-	<img intro-outro="slideh" class="card-large" src="{{!get_card_url(.)}}"/>
-    </span>
-	{{!/community_cards}}
-	{{!#win_screen}}
-	<br/>
-	<span class="winner">
-	{{!#(win_condition == 'last_man_standing')}}
-	{{!this.winner.name}} won <span class="winnings">{{!this.winnings}}</span>!
-	{{!/last_man_standing}}
+	  <!-- Community Cards --><br/>
+	  {{!#community_cards}}
+          <span class="{{!#is_win_card(.)}}win-card{{!/win_card}} {{!#is_lose_card(.)}}lose-card{{!/lose}}">
+	    <img intro-outro="slideh" class="card-large" src="{{!get_card_url(.)}}"/>
+          </span>
+	  {{!/community_cards}}
+	  {{!#win_screen}}
+	  <br/>
+	  <span class="winner">
+	    {{!#(win_condition == 'last_man_standing')}}
+	    {{!this.winner.name}} won <span class="winnings">{{!this.winnings}}</span>!
+	    {{!/last_man_standing}}
 
-	{{!#(win_condition == 'showdown')}}
-	{{!#winner}}
-	{{!name}} won <span class="winnings">{{!winnings}}</span> with {{!best_hand.type}}<br/>
+	    {{!#(win_condition == 'showdown')}}
+	    {{!#winner}}
+	    {{!name}} won <span class="winnings">{{!winnings}}</span> with {{!best_hand.type}}<br/>
 
-	{{!/winner}}
-	{{!/showdown}}
-	</span>
-	{{!/win_screen}}
-	    </div>
-
-      <div class="el">
-	<div class="actions">
-	  <span>
-	{{!#can_i_bet_later}}
-	<!-- Auto action 
-	check check-fold call-any
-	fold call money, call any
-	-->
-	{{!#call_check == 'check'}}
-	<!-- Remark: here a check's value is "call" because a check is a call of 0 -->
-	<button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">check</button><br/>
-	<button class="pure-button {{!# auto_action == 'check_fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
-	<button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
-	{{!/check}}
-
-	{{!#call_check == 'call'}}
-	<button class="pure-button {{!# auto_action == 'fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="fold">fold</button><br/>
-	<button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">call {{!amount_needed_to_call}}</button><br/>
-	<button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
-	{{!/call}}
-	{{!/can_i_bet_later}}
-
-	<!-- Action 
-	fold
-	check
-	call (all-in)
-	raise-to (all-in)
-	-->
-
-	{{!#is_my_turn}}
-	{{!^raise_menu}}
-	{{!#call_check=='call'}}<button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{!/display_fold}}
-	<button class="pure-button pure-button-primary" on-click="all_in">all In</button><br/>
-	{{!#can_call}}
-	<button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}} {{!#amount_needed_to_call>0}}{{!amount_needed_to_call}}{{!/amt}}</button><br/>
-	{{!/can_call}}
-	{{!#can_raise}}
-	<button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
-	{{!/can_raise}}
-	{{!/hide_raise_menu}}
-
-	<!--  raise menu -->
-	{{!#raise_menu}}
-	<button class="pure-button" on-click="raise_increase">+</button>
-	<button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
-	<button class="pure-button pure-button-primary" on-click="raise">raise to {{!current_bet + raise_amount}}</button><br/><br/>
-	{{!/raise_menu}}
-	{{!/is_my_turn}}
+	    {{!/winner}}
+	    {{!/showdown}}
 	  </span>
+	  {{!/win_screen}}
 	</div>
-      </div>
 
-	  {{!#seats}}
-	  <div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}} {{!#(win_screen && userid == win_screen.winner.userid)}}winner{{!/winner}}">
-	    {{!#disconnected}}<span class="disconnected">Disconnected</span>{{!/disconnected}}
+        <div class="el">
+	  <div class="actions">
+	    <span>
+	      {{!#can_i_bet_later}}
+	      <!-- Auto action 
+	           check check-fold call-any
+	           fold call money, call any
+	        -->
+	      {{!#call_check == 'check'}}
+	      <!-- Remark: here a check's value is "call" because a check is a call of 0 -->
+	      <button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">check</button><br/>
+	      <button class="pure-button {{!# auto_action == 'check_fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
+	      <button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
+	      {{!/check}}
 
-	    {{!#round_bet}}
-	<span class="chips">
-	  ${{!round_bet.toFixed(0)}}
+	      {{!#call_check == 'call'}}
+	      <button class="pure-button {{!# auto_action == 'fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="fold">fold</button><br/>
+	      <button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">call {{!amount_needed_to_call}}</button><br/>
+	      <button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
+	      {{!/call}}
+	      {{!/can_i_bet_later}}
+
+	      <!-- Action 
+	           fold
+	           check
+	           call (all-in)
+	           raise-to (all-in)
+	        -->
+
+	      {{!#is_my_turn}}
+	      {{!^raise_menu}}
+	      {{!#call_check=='call'}}<button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{!/display_fold}}
+	      <button class="pure-button pure-button-primary" on-click="all_in">all In</button><br/>
+	      {{!#can_call}}
+	      <button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}} {{!#amount_needed_to_call>0}}{{!amount_needed_to_call}}{{!/amt}}</button><br/>
+	      {{!/can_call}}
+	      {{!#can_raise}}
+	      <button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
+	      {{!/can_raise}}
+	      {{!/hide_raise_menu}}
+
+	      <!--  raise menu -->
+	      {{!#raise_menu}}
+	      <button class="pure-button" on-click="raise_increase">+</button>
+	      <button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
+	      <button class="pure-button pure-button-primary" on-click="raise">raise to {{!current_bet + raise_amount}}</button><br/><br/>
+	      {{!/raise_menu}}
+	      {{!/is_my_turn}}
+	    </span>
+	  </div>
+        </div>
+
+	{{!#seats}}
+	<div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}} {{!#(win_screen && userid == win_screen.winner.userid)}}winner{{!/winner}}">
+	  {{!#disconnected}}<span class="disconnected">Disconnected</span>{{!/disconnected}}
+
+	  {{!#round_bet}}
+	  <span class="chips">
+	    ${{!round_bet.toFixed(0)}}
 	  </span>
-	{{!/pot}}
+	  {{!/pot}}
 
 	  <!-- Join/Buy in menu -->
 	  {{!#(state == 'empty' && !my_seat)}}
@@ -128,289 +140,59 @@ Loading
 	  {{!#hole_cards}}
           <span class="{{!#is_win_card(.)}}win-card{{!/win_card}} {{!#is_lose_card(.)}}lose-card{{!/lose_card}}">
 	    <img src="{{!get_card_url(.)}}" intro-outro="slideh" class="card-large"/>
-        </span>
+          </span>
 	  {{!/hole_cards}}
 	  {{!/userid}}
 
 	  <span class="last_move">
 	    {{!last_move}}
 	  </span>
-	  </div>
-	  {{!/seats}}
 	</div>
+	{{!/seats}}
+      </div>
 
-  </div>
-{{!/game}}
-</script>
+    </div>
+    {{!/game}}
+  </script>
 
-<script src="{{ static_url("js/client.js")}}"></script>
-<script>
-ractive = undefined;
-var initialize_ractive = function(game, userid) {
-
-  ractive = new Ractive({
-  el: '#content',
-  template: '#template',
-
-  data: {
-  game: game,
-userid: userid,
-  get_card_url: function(card) {
-if(!card) card = 'unknown';
-  if (card == 'unknown') return "{{ static_url('images/cards/blue-back.png') }}";
-  var card_array = card.split('.');
-  var rank = card_array[0];
-  var suit = card_array[1];
-  return "{{ static_url('images/cards/compact/') }}" + suit + "/" + rank + ".svg";
-  },
-
-  is_win_card: function(card) {
-    var win_cards = ractive.get('game.win_screen.winner.best_hand.hand');
-    win_cards = win_cards || [];
-    return win_cards.indexOf(card) >= 0
-  },
-
-  is_lose_card: function(card) {
-    var winner = ractive.get('game.win_screen.winner');
-    return winner && !ractive.get('is_win_card')(card);
-  }
-
-  },
-
-  computed: {
-
-is_any_user_active: function() {
-var active_user_position = this.get('game.active_user_position');
-return (active_user_position != undefined);
-},
-can_i_bet_later: function() {
-if(!this.get('game')) return false;
-var game_state = this.get('game.game_state');
-var current_bet = this.get('current_bet');
-var seat = this.get('my_seat');
-if(!seat) return false;
-var is_my_turn = this.get('is_my_turn');
-var can_bet = seat.state == 'ready' && (seat.round_bet < current_bet || !seat.had_turn);
-var winner = this.get('game.winner')
-var any_user_active = this.get('is_any_user_active');
-return any_user_active && (game_state != 'wait_for_players') && !is_my_turn && can_bet;
-},
-  
-  seated_userids: function() {
-  return this.get('game.seats').map(function(seat){ return seat.userid });
-  },
-
-  my_seat: function() {
-  var userid = this.get('userid');
-  var seated_userids = this.get('seated_userids');
-  index = seated_userids.indexOf(userid);
-  var seats = this.get('game.seats');
-  return seats[index];
-  },
-
-  is_my_turn: function() {
-  var my_seat = this.get('my_seat');
-if(!my_seat) return false;
-  var active_user_position = this.get('game.active_user_position');
-  var game_state = this.get('game.game_state');
-  return my_seat.seat_number == active_user_position && game_state != 'wait_for_players';
-  },
-
-  current_bet: function() {
-  var seats = this.get('game.seats');
-  var round_bets = seats.map(function (seat) {return seat.round_bet});
-  return Math.max.apply(null, round_bets);
-  },
-
-  call_check: function() {
-  amount_needed_to_call = this.get('amount_needed_to_call');
-  if (amount_needed_to_call == 0) return 'check'
-  return 'call'
-  },
-
-  amount_needed_to_call: function() {
-  var current_bet = this.get('current_bet');
-  var my_round_bet = this.get('my_seat').round_bet;
-  return current_bet - my_round_bet;
-  },
-
-  maybe_my_seat_number: function() {
-  var my_seat = this.get('my_seat');
-  if(my_seat) return my_seat.seat_number;
-  return 0;
-  },
-
-  raise_increment: function() {
-  var min_raise = this.get('game.min_raise');
-  var big_blind = this.get('game.big_blind');
-  return Math.max(min_raise, big_blind);
-  },
-
-  can_raise: function() {
-  var amount_needed_to_call = this.get('amount_needed_to_call');
-  var min_raise = this.get('game.min_raise');
-  var my_seat = this.get('my_seat');
-  return my_seat.money >= amount_needed_to_call + min_raise;
-  },
-
-  can_call: function() {
-  var amount_needed_to_call = this.get('amount_needed_to_call');
-  var my_seat = this.get('my_seat');
-  return my_seat.money > amount_needed_to_call;
-  }
+  <script src="{{ static_url("js/client.js")}}"></script>
+  <script>
+    ractive = undefined;
+    
+    <!-- Action handlers -->
+    var synchronize_game = function(msg) {
+    if(!ractive) {
+    ractive = initialize_ractive("{{ static_url("images/") }}", msg.game, msg.userid);
+    }
+    else {
+    ractive.set('game', msg.game);
+    }
+    }
 
 
-  }
+    var receive = function(msg) {
+    var msg = JSON.parse(msg);
+    console.log(msg)
 
-  });
+    if (msg['warning']) {
+    ractive.set('warning', msg['warning']);
+    }
 
-<!-- Buy in menu -->
-ractive.set('buy_in_increment', game.min_buy_in/2);
-ractive.on('show_buyin_menu', function(event) {
- ractive.set('show_buyin_menu', event.context.seat_number);
- ractive.set('buy_in', ractive.get('game.min_buy_in'))
- console.log(event)
-});
+    if (msg['error']) {
+    ractive.set('error', msg['error'])
+    }
 
-ractive.on('buy_in_increase', function(event) {
-var current = this.get('buy_in');
-var cap = this.get('game.max_buy_in');
-var next = current + this.get('buy_in_increment');
-var result = Math.min(next, cap);
-ractive.set('buy_in', result);
-});
+    var action = msg['action']
+    if (action == "synchronize_game") synchronize_game(msg);
+    window.msg = msg
+    }
 
-ractive.on('buy_in_decrease', function(event) {
-var current = ractive.get('buy_in');
-var next = current - ractive.get('buy_in_increment');
-var result = Math.max(next, ractive.get('game.min_buy_in'));
-ractive.set('buy_in', result);
-});
+    var send = game_connect("{{gameid}}", receive);
 
-<!-- Raise menu -->
-ractive.on('show_raise_menu', function(event) {
-ractive.set('raise_menu', true);
-ractive.set('raise_amount', ractive.get('game.min_raise'));
-});
-
-ractive.on('hide_raise_menu', function (event) {
-ractive.set('raise_menu', false);
-});
-
-ractive.on('raise_increase', function(event) {
-var my_seat = ractive.get('my_seat')
-var amount_needed_to_call = ractive.get('amount_needed_to_call');
-var next = ractive.get('raise_amount') + ractive.get('raise_increment');
-ractive.set('raise_amount', Math.min(my_seat.money - amount_needed_to_call, next));
-
-});
-
-ractive.on('raise_decrease', function(event) {
-var current = ractive.get('raise_amount');
-var next = current - ractive.get('raise_increment');
-var result = Math.max(next, ractive.get('game.min_raise'));
-ractive.set('raise_amount', result);
-});
-
-ractive.on('hide_raise_menu', function(event) {
-ractive.set('raise_menu', false);
-});
-
-ractive.observe('is_my_turn', function(current, old, path) {
-if(!current) ractive.set('raise_menu', false);
-if(current) {
-var auto_action = ractive.get('auto_action');
-var amount_needed = ractive.get('amount_needed_to_call');
-if(auto_action == 'call_any') {
-send({'action':'call'});
-}
-if(auto_action == 'call') {
-var auto_call_amount = this.get('auto_call_amount');
-if(auto_call_amount >= amount_needed) send({'action':'call'});
-}
-if(auto_action == 'fold') {
-send({'action':'fold'});
-}
-if(auto_action == 'check_fold') {
-if(amount_needed == 0) { send({'action':'call'})}
-else { send({'action':'fold'})}
-}
-}
-});
-
-//Reset auto action
-ractive.observe('amount_needed_to_call', function(current, old) {
-var auto_action = this.get('auto_action');
-if(current > old && auto_action == 'call') this.set('auto_action', '');
-});
-
-ractive.observe('game.game_state', function(current, old) {
-this.set('auto_action', '');
-});
-
-<!-- Actions -->
-ractive.on('buy_in', function(event) {
-send({'action':'buy_in', 'buy_in': ractive.get('buy_in'), 'seat_number': event.context.seat_number});
-});
-
-ractive.on('fold', function(event) {
-send({'action':'fold'});
-});
-
-ractive.on('call_check', function(event) {
-send({'action':'call'}); 
-});
-
-ractive.on('raise', function(event) {
-var raise_amount = ractive.get('raise_amount');
-send({'action':'raise', 'raise_amount': raise_amount});
-});
-
-ractive.on('all_in', function(event) {
-send({'action':'all_in'});
-});
-
-ractive.on('auto_action', function(event) {
-var new_action = event.node.value;
-var current_action = this.get('auto_action');
-if(current_action == new_action) {
-this.set('auto_action', '') }
-else {
-this.set('auto_action', new_action);
-}
-if (new_action == 'call') {
-var amount_needed = this.get('amount_needed_to_call');
-this.set('auto_call_amount', amount_needed);
-}
-});
-
-
-}<!-- End initialize ractive -->
-
-<!-- Action handlers -->
-var synchronize_game = function(msg) {
-if(!ractive) {
-initialize_ractive(msg.game, msg.userid);
-}
-else {
-ractive.set('game', msg.game);
-
-}
-}
-
-
-var receive = function(msg) {
-var msg = JSON.parse(msg);
-console.log(msg)
-var action = msg['action']
-if (action == "synchronize_game") synchronize_game(msg);
-window.msg = msg
-}
-var send = connect({{gameid}}, receive);
-setInterval(function() {
+    setInterval(function() {
     console.log("Pinging")
     send({'action': 'ping'});
-}, 40000)
-</script>
+    }, 40000)
+  </script>
 
 </body>

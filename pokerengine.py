@@ -2,8 +2,8 @@ import copy
 import random
 import handranker
 from handranker import cards, suits, ranks
+from collections import deque
 
-just_joined = 'just_joined'
 ready = 'ready'
 forcing_big_blind = 'forcing_big_blind'
 all_in = 'all_in'
@@ -18,6 +18,34 @@ turn = 'turn'
 river = 'river'
 reveal = 'reveal'
 last_man_standing = 'last_man_standing'
+
+STATE_TRANSITIONS = {
+    wait_for_players: pre_flop,
+    pre_flop: flop,
+    flop: turn,
+    turn: river,
+    river: reveal,
+}
+
+# python2 -> python3
+def cmp_to_key(mycmp):
+    'Convert a cmp= function into a key= function'
+    class K:
+        def __init__(self, obj, *args):
+            self.obj = obj
+        def __lt__(self, other):
+            return mycmp(self.obj, other.obj) < 0
+        def __gt__(self, other):
+            return mycmp(self.obj, other.obj) > 0
+        def __eq__(self, other):
+            return mycmp(self.obj, other.obj) == 0
+        def __le__(self, other):
+            return mycmp(self.obj, other.obj) <= 0
+        def __ge__(self, other):
+            return mycmp(self.obj, other.obj) >= 0
+        def __ne__(self, other):
+            return mycmp(self.obj, other.obj) != 0
+    return K
 
 #todo move to util
 def next_greatest(current, candidates):
@@ -37,7 +65,7 @@ def make_shuffled_deck():
 class Game:
     def __init__(self, gameid, room_size, make_deck=make_shuffled_deck):
         self._make_shuffled_deck = make_deck
-        self._game = {
+        self.data = {
             'gameid': gameid,
             'seats': [],
             'room_size': room_size,
@@ -57,10 +85,11 @@ class Game:
             'win_screen': None,
             'win_queue': [],
             'transitioning': False,
+            'history': deque()
         }
 
         for seat_number in range(room_size):
-            self._game['seats'].append(self._make_empty_seat(seat_number))
+            self.data['seats'].append(self._make_empty_seat(seat_number))
 
     @staticmethod
     def _make_error(msg):
@@ -84,14 +113,14 @@ class Game:
 
     def get_seated_userids(self):
         userids = set()
-        for seat in self._game['seats']:
+        for seat in self.data['seats']:
             userid = seat.get('userid', None)
             if userid:
                 userids.add(userid)
         return userids
 
     def try_join(self, userid, name, seat_number, buy_in):
-        game = self._game
+        game = self.data
         if seat_number < 0 or seat_number >= len(game['seats']):
             return False
         if userid in self.get_seated_userids():
@@ -104,24 +133,22 @@ class Game:
         return True
     
     def is_game_over(self):
-        return self._game['game_state'] in [last_man_standing, reveal]
-
-    def get_game_state(self):
-        return self._game['game_state']
+        return self.data['game_state'] in [last_man_standing, reveal]
 
     def get_id(self):
-        return self._game['gameid']
+        return self.data['gameid']
 
     def _seat_user(self, seat_number, userid, name, money):
-        game = self._game
+        game = self.data
         seat = game['seats'][seat_number]
         seat['userid'] = userid
         seat['name'] = name
         seat['money'] = money
         seat['state'] = forcing_big_blind
 
+    # masks out global information that this particular user is not supposed to know
     def make_facade_for_user(self, userid):
-        facade = copy.deepcopy(self._game)
+        facade = copy.deepcopy(self.data)
 
         still_standing_userids = self._extract_userids(
             self._get_still_standing_seats()
@@ -130,7 +157,7 @@ class Game:
         for seat in facade['seats']:
             seat_userid = seat.get('userid', None)
             if seat_userid != userid:
-                should_reveal = self._game['game_state'] == reveal \
+                should_reveal = self.data['game_state'] == reveal \
                                 and seat_userid in still_standing_userids
                 if not should_reveal:
                     num_hole_cards = len(seat.get('hole_cards', []))
@@ -139,28 +166,26 @@ class Game:
         return facade
 
     def _find_seat_by_userid(self, userid):
-        seats = self._game['seats']
+        seats = self.data['seats']
         for seat in seats:
             if seat.get('userid', None) == userid:
                 return seat
         else:
             return None
 
-    def _do_if_user_exists(self, userid, action):
+    # if the game has started, set the user as disconnected
+    # otherwise, just clear the seat
+    def try_disconnect(self, userid):
         user_seat = self._find_seat_by_userid(userid)
         if user_seat:
-            return action(user_seat)
-
-    def try_disconnect(self, userid):
-        def action(user_seat):
             seat_number = user_seat['seat_number']
-            if self._game['game_state'] == wait_for_players:
+            if self.data['game_state'] == wait_for_players:
                 user_seat.update(self._make_empty_seat(user_seat['seat_number']))
                 return True
             folded = self.try_fold(user_seat['userid'])
-            self._game['seats'][seat_number]['disconnected'] = True
+            self.data['seats'][seat_number]['disconnected'] = True
             return True
-        return self._do_if_user_exists(userid, action)
+        return False
 
     def try_reconnect(self, userid):
         seat = self._find_seat_by_userid(userid)
@@ -170,7 +195,7 @@ class Game:
         return False
 
     def _get_prepared_seats(self):
-        prepared_user_states = set((just_joined, ready, forcing_big_blind))
+        prepared_user_states = set((ready, forcing_big_blind))
         return self._filter_seats(lambda seat: seat['state'] in prepared_user_states)
 
     def _get_ready_seats(self):
@@ -183,84 +208,77 @@ class Game:
         return self._filter_seats(lambda seat: seat['state'] == forcing_big_blind)
 
     def _filter_seats(self, pred):
-        return [seat for seat in self._game['seats'] if pred(seat)]
-
-    def _can_start(self):
-        game = self._game
-        if game['game_state'] != wait_for_players:
-            return False
-        if len(self._get_prepared_seats()) < 2:
-            return False
-        return True
+        return [seat for seat in self.data['seats'] if pred(seat)]
 
     @staticmethod
     def _extract_seat_numbers(seats):
-        return map(lambda seat: seat['seat_number'], seats)
+        return list(map(lambda seat: seat['seat_number'], seats))
 
     @staticmethod
     def _extract_userids(seats):
-        return map(lambda seat: seat['userid'], seats)
+        return list(map(lambda seat: seat['userid'], seats))
 
 
-    def _try_start(self):
-        if self._can_start():
-            self._game['win_screen'] = None
-            # Set Deck
-            self._game['deck'] = self._make_shuffled_deck()
+    def _start(self):
+        self.data['win_screen'] = None
+        # Set Deck
+        self.data['deck'] = self._make_shuffled_deck()
 
-            # Ready more players
-            ready_seats = self._get_ready_seats()
-            if len(ready_seats) <= 1:
-                prepared_seats = self._get_prepared_seats()
-                for seat in prepared_seats:
-                    seat['state'] = ready
+        # Ready more players
+        ready_seats = self._get_ready_seats()
+        if len(ready_seats) <= 1:
+            prepared_seats = self._get_prepared_seats()
+            for seat in prepared_seats:
+                seat['state'] = ready
 
-            # Set Dealer
-            dealer_position = self._game['dealer_position']
-            ready_seats = self._get_ready_seats()
-            ready_positions = self._extract_seat_numbers(ready_seats)
-            dealer_position = next_greatest(dealer_position, ready_positions)
-            self._game['dealer_position'] = dealer_position
+        # Set Dealer
+        dealer_position = self.data['dealer_position']
+        ready_seats = self._get_ready_seats()
+        ready_positions = self._extract_seat_numbers(ready_seats)
 
-            # Set Blind Positions
-            small_blind_potentials = self._extract_seat_numbers(self._get_ready_seats())
-            big_blind_potentials = self._extract_seat_numbers(self._get_prepared_seats())
-            small_blind_position = next_greatest(dealer_position, small_blind_potentials)
-            big_blind_position = next_greatest(small_blind_position, big_blind_potentials)
-            if big_blind_position == dealer_position:
-                #Heads up position
-                small_blind_position, big_blind_position = \
-                    big_blind_position, small_blind_position
-            self._game['small_blind_position'] = small_blind_position
-            self._game['big_blind_position'] = big_blind_position
+        dealer_position = next_greatest(dealer_position, ready_positions)
+        self.data['dealer_position'] = dealer_position
 
-            # Collect Blinds
-            small_blind = self._game['small_blind']
-            big_blind = self._game['big_blind']
-            forcing_big_blind_seats = self._get_forcing_big_blind_seats()
-            small_blind_seat = self._game['seats'][small_blind_position]
-            big_blind_seat = self._game['seats'][big_blind_position]
+        # Set Blind Positions
+        small_blind_potentials = self._extract_seat_numbers(self._get_ready_seats())
+        big_blind_potentials = self._extract_seat_numbers(self._get_prepared_seats())
+        small_blind_position = next_greatest(dealer_position, small_blind_potentials)
+        big_blind_position = next_greatest(small_blind_position, big_blind_potentials)
+        if big_blind_position == dealer_position:
+            #Heads up position
+            small_blind_position, big_blind_position = \
+                big_blind_position, small_blind_position
 
-            paid_big_blind = set()
-            for seat in [big_blind_seat] + forcing_big_blind_seats:
-                if seat['userid'] in paid_big_blind:
-                    continue
-                self._bet_or_all_in(seat, big_blind)
-                paid_big_blind.add(seat['userid'])
-            
-            if small_blind_seat['userid'] not in paid_big_blind:
-                self._bet_or_all_in(small_blind_seat, small_blind)
+        self.data['small_blind_position'] = small_blind_position
+        self.data['big_blind_position'] = big_blind_position
 
-            # Deal hole cards
-            for seat in self._get_still_standing_seats():
-                for i in range(2):
-                    card = self._deal_card()
-                    seat['hole_cards'].append(card)
+        # Collect Blinds
+        small_blind = self.data['small_blind']
+        big_blind = self.data['big_blind']
+        forcing_big_blind_seats = self._get_forcing_big_blind_seats()
+        small_blind_seat = self.data['seats'][small_blind_position]
+        big_blind_seat = self.data['seats'][big_blind_position]
 
-            return True
+        paid_big_blind = set()
+        for seat in [big_blind_seat] + forcing_big_blind_seats:
+            if seat['userid'] in paid_big_blind:
+                continue
+            self._bet_or_all_in(seat, big_blind)
+            paid_big_blind.add(seat['userid'])
+
+        if small_blind_seat['userid'] not in paid_big_blind:
+            self._bet_or_all_in(small_blind_seat, small_blind)
+
+        # Deal hole cards
+        for seat in self._get_still_standing_seats():
+            for i in range(2):
+                card = self._deal_card()
+                seat['hole_cards'].append(card)
+
+        return True
 
     def _deal_card(self):
-        deck = self._game['deck']
+        deck = self.data['deck']
         card = deck[-1]
         deck.pop()
         return card
@@ -272,46 +290,64 @@ class Game:
             (seat['round_bet'] < self._get_current_bet() or not seat['had_turn'])
         )
 
-    def can_start_next_phase(self):
-        if self._game['active_user_position'] is None \
-           and self._game['game_state'] != wait_for_players:
+    def _can_start(self):
+        game = self.data
+        return game['game_state'] == wait_for_players \
+            and len(self._get_prepared_seats()) >= 2
+
+    def can_auto_advance(self):
+        if self.data['active_user_position'] is None \
+           and self.data['game_state'] != wait_for_players:
             return True
         if self._can_start():
             return True
         return False
-        
-    def try_start_next_phase(self):
-        if not self.can_start_next_phase():
+
+    def auto_advance(self):
+        # cannot advance if currently waiting for user move
+        if not self.data['active_user_position'] is None:
             return False
 
-        just_started = self._try_start()
-        if not just_started:
-            self._reset_round()
+        print("Auto advancing!")
 
         if self.is_game_over():
-            # There may be more winners to display
-            if self._game['win_queue']:
+            if self.data['win_queue']:
                 self._award_next_winner()
             else:
-                self._reset_game()
+                self._reset_data()
             return True
 
-        current_state = self._game['game_state']
+        if self._can_start():
+            self._start()
 
-        next_states = {
-            wait_for_players: pre_flop,
-            pre_flop: flop,
-            flop: turn,
-            turn: river,
-            river: reveal,
-        }
+        self._prepare_next_round()
 
-        current_state = next_states[current_state]
-        self._game['game_state'] = current_state
-
-        if current_state == reveal:
-            self._showdown()
+        still_standing_seats = self._get_still_standing_seats()
+        if len(still_standing_seats) == 1:
+            last_man = still_standing_seats[0]
+            self.data['win_screen'] = {'win_condition': 'last_man_standing'}
+            self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
+            self.data['game_state'] = last_man_standing
+            self._append_msg_to_history("== Last man standing ==")
             return True
+        else:
+            current_state = STATE_TRANSITIONS[self.data['game_state']]
+            self.data['game_state'] = current_state
+
+            if current_state == pre_flop:
+                self._append_msg_to_history("== Pre-flop ==")
+            if current_state == flop:
+                self._append_msg_to_history("== Flop ==")
+            if current_state == turn:
+                self._append_msg_to_history("== Turn ==")
+            if current_state == river:
+                self._append_msg_to_history("== River ==")
+            if current_state == reveal:
+                self._append_msg_to_history("== Showdown ==")
+
+            if current_state == reveal:
+                self._showdown()
+                return True
         
         # Deal Community Cards
         num_community_cards = {
@@ -320,33 +356,31 @@ class Game:
             turn: 1,
             river: 1,
         }[current_state]
-        
+
         for i in range(num_community_cards):
             card = self._deal_card()
-            self._game['community_cards'].append(card)
+            self.data['community_cards'].append(card)
 
-        # Set UTG
+        # Set under the gun (UTG)
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
         if len(utg_potentials) == 1:
-            # This can when everyone is all-in except one caller
+            # This can happen when everyone is all-in except one caller
             # Then in the next round the caller would play himself only
             # So do a check to avoid this
-            self._game['active_user_position'] = None
+            self.data['active_user_position'] = None
         else:
-            big_blind_position = self._game['big_blind_position']
-
-            self._game['active_user_position'] = next_greatest(
+            big_blind_position = self.data['big_blind_position']
+            self.data['active_user_position'] = next_greatest(
                 big_blind_position, utg_potentials
             )
 
         return True
 
     def _showdown(self):
-        self._game['active_user_position'] = None
         best_hands = dict()
         standing_seats = self._get_still_standing_seats()
         for seat in standing_seats:
-            hand7 = seat['hole_cards'] + self._game['community_cards']
+            hand7 = seat['hole_cards'] + self.data['community_cards']
             best_hands[seat['userid']] = handranker.search(hand7)
 
         # stable sort / lexical sort (hand score, total bet)
@@ -354,8 +388,9 @@ class Game:
             key = lambda s: -s['total_bet']
         )
         standing_seats.sort(
-            cmp = lambda s1, s2: handranker.compare_hand_dicts(
-                best_hands[s1['userid']], best_hands[s2['userid']])
+            key = cmp_to_key(
+                lambda s1, s2: handranker.compare_hand_dicts(
+                    best_hands[s1['userid']], best_hands[s2['userid']]))
         )
         winner_infos = []
         while standing_seats:
@@ -370,33 +405,32 @@ class Game:
                 winner['best_hand'] = best_hands[winner['userid']]
                 winnings = 0
                 winner_bet = winner['total_bet']
-                for seat in self._game['seats']:
+                for seat in self.data['seats']:
                     gains = min(seat['total_bet'], winner_bet)/num_winners
                     seat['total_bet'] -= gains
                     winnings += gains
                 winner_infos.append({'winner': winner, 'winnings': winnings})
                 num_winners -= 1
             standing_seats = [seat for seat in standing_seats if seat['total_bet'] > 0]
-            #print "remaining winner:", standing_seats
 
-        self._game['win_screen'] = {'win_condition': 'showdown'}
-        self._game['win_queue'] = winner_infos
-        self._award_next_winner()
+        self.data['win_screen'] = {'win_condition': 'showdown'}
+        self.data['win_queue'] = winner_infos
 
     def _award_next_winner(self):
-        winners = self._game['win_queue']
-        win_info = winners.pop(0)
+        win_info = self.data['win_queue'].pop(0)
         winnings = win_info['winnings']
-        self._game['win_screen'].update(win_info)
-        self._game['pot'] -= winnings
+        self.data['win_screen'].update(win_info)
+        self.data['pot'] -= winnings
         winner_seat = self._find_seat_by_userid(win_info['winner']['userid'])
         if winner_seat:
             winner_seat['money'] += winnings
-        
+        self._append_msg_to_history("Awarded {name} with {winnings}".format(
+                                    name = winner_seat['name'],
+                                    winnings = winnings))
 
     def _get_current_bet(self):
         bet = 0
-        for seat in self._game['seats']:
+        for seat in self.data['seats']:
             bet = max(seat['round_bet'], bet)
         return bet
 
@@ -415,69 +449,48 @@ class Game:
         else:
             seat['state'] = ready
         amount_raised = bet_after - bet_before
-        self._game['min_raise'] = max(self._game['min_raise'], amount_raised)
+        self.data['min_raise'] = max(self.data['min_raise'], amount_raised)
 
     def _is_user_active(self, userid):
-        active_user_position = self._game['active_user_position']
+        active_user_position = self.data['active_user_position']
         if active_user_position is None:
             return False
-        active_user_id = self._game['seats'][active_user_position].get('userid', None)
+        active_user_id = self.data['seats'][active_user_position].get('userid', None)
         return active_user_id == userid
 
-    def try_fold(self, userid):
-        if self._is_user_active(userid):
-            seat = self._find_seat_by_userid(userid)
-            seat['state'] = folded
-            seat['had_turn'] = True
-            seat['last_move'] = 'fold'
-            self._end_turn()
-            return True
-
-    def _try_award_last_man_standing(self):
-        still_standing_seats = self._get_still_standing_seats()
-        if len(still_standing_seats) == 1:
-            self._game['active_user_position'] = None
-            last_man = still_standing_seats[0]
-            self._make_pot()
-            self._game['win_screen'] = {'win_condition': 'last_man_standing'}
-            self._game['win_queue'].append({'winner': last_man, 'winnings': self._game['pot']})
-            self._game['game_state'] = last_man_standing
-            self._award_next_winner()
-            return True
-
     def _make_pot(self):
-        for seat in self._game['seats']:
-            self._game['pot'] += seat['round_bet']
+        for seat in self.data['seats']:
+            self.data['pot'] += seat['round_bet']
             seat['round_bet'] = 0
 
+    def _end_turn(self, seat):
+        seat['had_turn'] = True
+        self._append_last_move_to_history(seat)
+        
+        active_user_position = self.data['active_user_position']
+        next_active_positions = self._extract_seat_numbers(self._get_can_bet_seats())
+        next_active_position = next_greatest(
+            active_user_position, next_active_positions
+        )
+        self.data['active_user_position'] = next_active_position
+        if next_active_position:
+            active_user = self.data['seats'][next_active_position]
+            if active_user['disconnected']:
+                self.try_fold(active_user['userid'])
 
-    def _end_turn(self):
-        if not self._try_award_last_man_standing():
-            # Advance user
-            active_user_position = self._game['active_user_position']
-            next_active_positions = self._extract_seat_numbers(self._get_can_bet_seats())
-            next_active_position = next_greatest(
-                active_user_position, next_active_positions
-            )
-            self._game['active_user_position'] = next_active_position
-            if next_active_position:
-                active_user = self._game['seats'][next_active_position]
-                if active_user['disconnected']:
-                    self.try_fold(active_user['userid'])
-            
-    def _reset_round(self):
+    def _prepare_next_round(self):
         self._make_pot()
-        for seat in self._game['seats']:
+        for seat in self.data['seats']:
             if seat['state'] == empty:
                 continue
             seat['had_turn'] = False
             seat['round_bet'] = 0
             if seat['last_move'] not in ['fold', 'all in']:
                 seat['last_move'] = None
-        self._game['min_raise'] = self._game['big_blind']
+        self.data['min_raise'] = self.data['big_blind']
 
-    def _reset_game(self):
-        for seat in self._game['seats']:
+    def _reset_data(self):
+        for seat in self.data['seats']:
             empty = self._make_empty_seat(seat['seat_number'])
             if seat['disconnected']:
                 seat.update(empty)
@@ -494,12 +507,32 @@ class Game:
                 # For now when someone busts, they just get kicked
                 # seat['state'] = busted
                 seat.update(empty)
-        self._game['community_cards'] = []
-        self._game['min_raise'] = 0
-        self._game['pot'] = 0
-        self._game['game_state'] = wait_for_players
-        self._game['win_queue'] = []
-        self._game['win_screen'] = None
+        self.data['community_cards'] = []
+        self.data['min_raise'] = 0
+        self.data['pot'] = 0
+        self.data['game_state'] = wait_for_players
+        self.data['win_queue'] = []
+        self.data['win_screen'] = None
+
+    def _append_msg_to_history(self, msg):
+        self.data['history'].append(msg)
+        while len(self.data['history']) > 10:
+            self.data['history'].popleft()
+
+    def _append_last_move_to_history(self, seat):
+        msg = "{name} {move}ed".format(name = seat['name'], move= seat['last_move'])
+        amt = seat['round_bet']
+        name = seat['name']
+        move = seat['last_move']
+        if move == 'all in':
+            msg = "{name} shoved all in ({amt})".format(name = name, amt = amt)
+        if move == 'check' or move == 'call':
+            msg = "{name} {move}ed ({amt})".format(name = name, amt = amt, move = move)
+        if move == 'raise':
+            msg = "{name} raised to {amt}".format(name = name, amt = amt)
+        if move == 'fold':
+            msg = "{name} folded".format(name = name)
+        self._append_msg_to_history(msg)
 
     def try_call(self, userid):
         if self._is_user_active(userid):
@@ -508,10 +541,9 @@ class Game:
             if needed_to_call == 0:
                 seat['last_move'] = 'check'
             else:
-                seat['last_move'] = 'call'
+                seat['last_move'] = 'call' 
             self._bet_or_all_in(seat, needed_to_call)
-            seat['had_turn'] = True
-            self._end_turn()
+            self._end_turn(seat)
             return True
 
     def try_raise(self, userid, raise_amount):
@@ -519,15 +551,13 @@ class Game:
             seat = self._find_seat_by_userid(userid)
             current_bet = self._get_current_bet()
             round_bet = seat['round_bet']
-            if raise_amount < self._game['min_raise']:
+            if raise_amount < self.data['min_raise']:
                 # Raise does not meet min raise
                 return False
             needed_to_call = current_bet - round_bet
             seat['last_move'] = 'raise'
             self._bet_or_all_in(seat, raise_amount + needed_to_call)
-            seat['had_turn'] = True
-
-            self._end_turn()
+            self._end_turn(seat)
             return True
 
     def try_all_in(self, userid):
@@ -535,27 +565,17 @@ class Game:
             seat = self._find_seat_by_userid(userid)
             seat['last_move'] = 'all in'
             self._bet_or_all_in(seat, seat['money'])
-            seat['had_turn'] = True
-            self._end_turn()
+            self._end_turn(seat)
             return True
+
+    def try_fold(self, userid):
+        if self._is_user_active(userid):
+            seat = self._find_seat_by_userid(userid)
+            seat['state'] = folded
+            seat['had_turn'] = True
+            seat['last_move'] = 'fold'
+            self._end_turn(seat)
+            return True
+
+
             
-                
-class GameLobby:
-    def __init__(self, room_size):
-        self._games = dict()
-        for gameid in range(100):
-            self._games[gameid] = Game(gameid, room_size)
-
-    def get_summary(self):
-        lobby = []
-        for game in self._games.values():
-            summary = {
-                'gameid': game.get_id(),
-                'num_users': len(game.get_seated_userids())
-            }
-            lobby.append(summary)
-        return lobby
-
-    def get_game(self, gameid):
-        return self._games[gameid]
-

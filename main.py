@@ -2,21 +2,20 @@ import os
 import json
 import uuid
 from collections import defaultdict
-from urllib import quote, unquote
+import urllib.parse
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import pokerengine
 
 room_size = 10
-lobby = pokerengine.GameLobby(room_size)
+games = {}
 listeners = defaultdict(set)
 listener_userids = defaultdict(set)
 
-
 def get_name(handler):
     name = handler.get_cookie('name', '')
-    name = unquote(name).strip()
+    name = urllib.parse.unquote(name).strip()
     name = name or "no-name"
     return name
 
@@ -28,20 +27,40 @@ class MainHandler(tornado.web.RequestHandler):
         
         name = get_name(self)
 
-        self.render("index.html", name=name, games=lobby.get_summary(), room_size=room_size)
+        self.render("index.html", name=name)
 
     def post(self):
         name = self.get_argument('name', '')
-        self.set_cookie('name', quote(name))
+        self.set_cookie('name', urllib.parse.quote(name))
         self.redirect('/')
+
+class StatsHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.write(str(games))
+        
+class ChangeNameHandler(tornado.web.RequestHandler):
+    def post(self):
+        name = self.get_argument('name', '')
+        self.set_cookie('name', urllib.parse.quote(name))
+        self.redirect('/')
+
+class NewGameHandler(tornado.web.RequestHandler):
+    def post(self):
+        game_id = str(uuid.uuid4())
+        games[game_id] = pokerengine.Game(game_id, room_size)
+        self.redirect("game/%s" % game_id)
 
 class GameHandler(tornado.web.RequestHandler):
     def get(self, gameid):
+        userid = self.get_cookie('userid', None)
+        if not userid:
+            self.set_cookie('userid', str(uuid.uuid4()))
+
         self.render("client.html", gameid=gameid)
 
-
 class GameSocketHandler(tornado.websocket.WebSocketHandler):
-    def open(self):
+    def open(self, gameid):
+        self.gameid = gameid
         self.userid = self.get_cookie('userid')
         if not self.userid:
             self.write_message({'error': 'no userid'})
@@ -55,13 +74,11 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if action == 'connect':
             gameid = data['gameid']
             if self.userid in listener_userids[gameid]:
-                self.write_message({'error': 'user already connected from another location'})
-                self.close()
-                return
+                self.write_message({'warning': 'user already connected from another location'})
             listeners[gameid].add(self)
             listener_userids[gameid].add(self.userid)
             self.gameid = gameid
-            self.game = lobby.get_game(gameid)
+            self.game = games.get(gameid, None)
             if not self.game:
                 self.write_message({'error': 'Game does not exist'});
             else:
@@ -70,6 +87,9 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
                     self.force_all_clients_synchronize()
                 else:
                     self.force_client_synchronize()
+
+        if action == 'ping':
+            self.write_message({'info': 'pong'})
         
         success = False
         if action == 'buy_in':
@@ -99,24 +119,28 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         self.try_start_next_phase()
 
     def try_start_next_phase(self):
-        if self.game.can_start_next_phase():
-            delay = .3
-            game_state = self.game.get_game_state()
+        if self.game.can_auto_advance() and not self.game.data['transitioning']:
+            self.game.data['transitioning'] = True
+            
+            delay = 0.5
+            game_state = self.game.data['game_state']
             if game_state == 'last_man_standing':
                 delay = 2.5
             if game_state == 'reveal':
-                delay = 5
+                delay = 3
+
             self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
+
             ioloop = tornado.ioloop.IOLoop.instance()
             def callback():
-                previous = self.game._game['game_state']
-                transitioned = self.game.try_start_next_phase()
+                transitioned = self.game.auto_advance()
                 if transitioned:
-                    current = self.game._game['game_state']
+                    self.game.data['transitioning'] = False
                     self.force_all_clients_synchronize()
                     # The game might still be stuck
                     # Like last action of showdown will auto advance to waiting for players
                     self.try_start_next_phase()
+
             ioloop.call_later(delay, callback)
 
     def make_synchronize_message(self):
@@ -127,25 +151,15 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         }
 
     def force_client_synchronize(self):
-        self.write_message(self.make_synchronize_message())
+        self.write_message(json.dumps(self.make_synchronize_message(), default=list))
 
-    def force_all_clients_synchronize(self, result = {}):
-        if result.get('error'):
-            self.write_message(result)
-        else:
-            if result:
-                self.send_all_listeners(result)
-            msg_factory = lambda listener: listener.make_synchronize_message()
-            self.send_all_listeners(msg_factory)
-
-    def send_all_listeners(self, msg_factory):
-        # A message (dictionary) will be lifted to a factory producing the message
-        if type(msg_factory) == type(dict()):
-            data = msg_factory
-            msg_factory = lambda listener: data
-        
+    def force_all_clients_synchronize(self):
         for listener in listeners[self.gameid]:
-            listener.write_message(msg_factory(listener))
+            listener.force_client_synchronize()
+
+    def send_all_listeners(self, msg):
+        for listener in listeners[self.gameid]:
+            listener.write_message(msg)
 
     def on_close(self):
         result = self.game.try_disconnect(self.userid)
@@ -158,8 +172,11 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
 application = tornado.web.Application(
     [
         (r"/", MainHandler),
-        (r"/game/([0-9]+)", GameHandler),
-        (r"/gamesocket", GameSocketHandler),
+        (r"/stats", StatsHandler),
+        (r"/change_name", ChangeNameHandler),
+        (r"/new_game", NewGameHandler),
+        (r"/game/([a-zA-Z0-9\-]+)", GameHandler),
+        (r"/gamesocket/([a-zA-Z0-9\-]+)", GameSocketHandler),
     ],
     cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
     template_path=os.path.join(os.path.dirname(__file__), "templates"),
