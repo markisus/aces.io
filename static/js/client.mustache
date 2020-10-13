@@ -63,9 +63,10 @@ Loading
 	        -->
 	        {{#call_check == 'check'}}
 	        <!-- Remark: here a check's value is "call" because a check is a call of 0 -->
-	        <button class="pure-button {{# auto_action == 'check_fold'}}button-selected{{/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
-	        <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">check</button><br/>
-	        <button class="pure-button {{# auto_action == 'call_any'}}button-selected{{/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
+
+	        [4] <button class="pure-button {{# auto_action == 'check_fold'}}button-selected{{/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
+	        [5] <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">check</button><br/>
+	        [6] <button class="pure-button {{# auto_action == 'call_any'}}button-selected{{/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
 	        {{/check}}
 
 	        {{#call_check == 'call'}}
@@ -84,22 +85,20 @@ Loading
 
 	      {{#is_my_turn}}
 	        {{^raise_menu}}
-	          {{#call_check=='call'}}<button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{/display_fold}}
-
+                  [0] <button class="pure-button pure-button-primary" on-click="all_in">all in</button><br/>
+	          {{#call_check=='call'}}[1] <button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{/display_fold}}
 	          {{#can_call}}
-	            <button class="pure-button pure-button-primary" on-click="call_check">{{call_check}} {{#amount_needed_to_call>0}}{{amount_needed_to_call}}{{/amt}}</button><br/>
+	             [2] <button class="pure-button pure-button-primary" on-click="call_check">{{call_check}} {{#amount_needed_to_call>0}}{{amount_needed_to_call}}{{/amt}}</button><br/>
 	          {{/can_call}}
 	          {{#can_raise}}
-	            <button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button> <br/>
+	            [3] <button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button><br/>
 	          {{/can_raise}}
-                  <button class="pure-button pure-button-primary" on-click="all_in">all in</button><br/>
 	          {{/hide_raise_menu}}
-
 	          <!--  raise menu -->
 	          {{#raise_menu}}
-	            <button class="pure-button" on-click="raise_increase">+</button>
-	            <button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
-	            <button class="pure-button pure-button-primary" on-click="raise">raise to {{current_bet + raise_amount}}</button><br/><br/>
+	            <button class="pure-button" on-click="raise_increase">[+]</button>
+	            <button class="pure-button" on-click="raise_decrease">[-]</button> <button class="pure-button" on-click="hide_raise_menu">[escape]</button><br/>
+	            <button class="pure-button pure-button-primary" on-click="raise">raise to {{current_bet + raise_amount}}</button> [enter]<br/><br/>
 	          {{/raise_menu}}
                   
 	      {{/is_my_turn}}
@@ -147,9 +146,7 @@ Loading
 	  {{#userid}}
 	    <span class="user">{{name}} ${{money.toFixed(0)}} </span>
 	    {{#hole_cards}}
-              <span class="
-                {{#is_win_hole_card(userid, .)}}win-card{{/win_card}}
-                {{#is_lose_hole_card(userid, .)}}lose-card{{/lose_card}}">
+              <span class="{{#is_win_card(.)}}win-card{{/win_card}} {{#is_lose_card(.)}}lose-card{{/lose}}">
 	      <img src="{{get_card_url(.)}}" intro-outro="slideh" class="card-large"/>
               </span>
 	    {{/hole_cards}}

@@ -45,28 +45,16 @@ var initialize_ractive = function(template, images_dir) {
       },
 
       is_win_card : function(card) {
+        if (ractive.get('game.win_screen.win_condition') != 'showdown') return false;
         var win_cards = ractive.get('game.win_screen.winner.best_hand.hand');
         win_cards = win_cards || [];
         return win_cards.indexOf(card) >= 0
       },
 
-      is_win_hole_card : function(userid, card) {
-        if (ractive.get('game.win_screen.win_condition') == 'last_man_standing') {
-          return ractive.get('game.win_screen.winner.userid') == userid;
-        }
-        return is_win_card(card);
-      },
-
       is_lose_card : function(card) {
+        if (ractive.get('game.win_screen.win_condition') != 'showdown') return false;
         var winner = ractive.get('game.win_screen.winner');
         return winner && !ractive.get('is_win_card')(card);
-      },
-
-      is_win_hole_card : function(userid, card) {
-        if (ractive.get('game.win_screen.win_condition') == 'last_man_standing') {
-          return ractive.get('game.win_screen.winner.userid') == userid;
-        }
-        return is_win_card(card);
       },
 
     },
@@ -293,6 +281,56 @@ var initialize_ractive = function(template, images_dir) {
       var amount_needed = this.get('amount_needed_to_call');
       this.set('auto_call_amount', amount_needed);
     }
+  });
+
+  window.addEventListener("keydown", event => {
+    if (event.key == '0') {
+      ractive.fire('all_in');
+    }
+    if (event.key == '1') {
+      ractive.fire('fold');
+    }
+    if (event.key == '2') {
+      ractive.fire('call_check');
+    }
+    if (event.key == '3') {
+      ractive.fire('show_raise_menu');
+    }
+    if (event.key == '+' || event.key == '=') {
+      ractive.fire('raise_increase');
+    }
+    if (event.key == '-' || event.key == '_') {
+      ractive.fire('raise_decrease');
+    }
+    if (event.key == 'Escape') {
+      ractive.fire('hide_raise_menu');
+      ractive.set('auto_action', null);
+    }
+    if (event.key == 'Enter') {
+      ractive.fire('raise');
+    }
+    if (event.key == '4') {
+      if (ractive.get('auto_action') == 'check_fold') {
+        ractive.set('auto_action', '');
+      } else {
+        ractive.set('auto_action', 'check_fold');
+      }
+    }
+    if (event.key == '5') {
+      if (ractive.get('auto_action') == 'call') {
+        ractive.set('auto_action', '');
+      } else {
+        ractive.set('auto_action', 'call');
+      }
+    }
+    if (event.key == '6') {
+      if (ractive.get('auto_action') == 'call_any') {
+        ractive.set('auto_action', '');
+      } else {
+        ractive.set('auto_action', 'call_any');
+      }
+    }
+    
   });
 
   return ractive;
