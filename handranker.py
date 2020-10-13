@@ -169,11 +169,14 @@ def search(hand):
     super_flush = find_super_flush(hand)
     if super_flush:
         straight_flush = find_straight(super_flush)
-        high_rank = straight_flush['high_rank']
         if straight_flush and high_rank == 'ace':
-            return {'hand': straight_flush['hand'], 'type': 'royal flush', 'high_rank':high_rank}
+            return {'hand': straight_flush['hand'],
+                    'type': 'royal flush',
+                    'high_rank':straight_flush['high_rank']}
         if straight_flush:
-            return {'hand': straight_flush['hand'], 'type': 'straight flush', 'high_rank':high_rank}
+            return {'hand': straight_flush['hand'],
+                    'type': 'straight flush',
+                    'high_rank':straight_flush['high_rank']}
         if not straight_flush:
             return find_flush(hand) #garaunteed to find a flush from superflush
     else:

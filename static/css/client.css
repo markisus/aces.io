@@ -114,6 +114,33 @@
     top: 2.7em;
 }
 
+.yellow {
+    background-color: yellow;
+    border: .1em solid orange;
+}
+
+.white {
+    background-color: white;
+    border: .1em solid gray;
+}
+
+.button {
+    padding: .1em;
+    border-radius: .8em;
+    position: absolute;
+    left: -4.4em;
+    top: 2.7em;
+}
+
+
+.dealer-button {
+    padding: .1em;
+    border-radius: .8em;
+    position: absolute;
+    left: -6.4em;
+    top: 2.7em;
+}
+
 .winnings {
     background-color: #32CD32;
     padding: .1em;

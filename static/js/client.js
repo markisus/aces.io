@@ -40,16 +40,34 @@ var initialize_ractive = function(template, images_dir) {
         return card_array[0];
       },
 
+      is_winner : function(userid) {
+        return ractive.get('game.win_screen.winner.userid') == userid;
+      },
+
       is_win_card : function(card) {
         var win_cards = ractive.get('game.win_screen.winner.best_hand.hand');
         win_cards = win_cards || [];
         return win_cards.indexOf(card) >= 0
       },
 
+      is_win_hole_card : function(userid, card) {
+        if (ractive.get('game.win_screen.win_condition') == 'last_man_standing') {
+          return ractive.get('game.win_screen.winner.userid') == userid;
+        }
+        return is_win_card(card);
+      },
+
       is_lose_card : function(card) {
         var winner = ractive.get('game.win_screen.winner');
         return winner && !ractive.get('is_win_card')(card);
-      }
+      },
+
+      is_win_hole_card : function(userid, card) {
+        if (ractive.get('game.win_screen.win_condition') == 'last_man_standing') {
+          return ractive.get('game.win_screen.winner.userid') == userid;
+        }
+        return is_win_card(card);
+      },
 
     },
 
@@ -72,7 +90,6 @@ var initialize_ractive = function(template, images_dir) {
         var is_my_turn = this.get('is_my_turn');
         var can_bet = seat.state == 'ready' &&
                       (seat.round_bet < current_bet || !seat.had_turn);
-        var winner = this.get('game.winner')
         var any_user_active = this.get('is_any_user_active');
         return any_user_active && (game_state != 'wait_for_players') &&
                !is_my_turn && can_bet;
@@ -149,6 +166,7 @@ var initialize_ractive = function(template, images_dir) {
       can_call : function() {
         var amount_needed_to_call = this.get('amount_needed_to_call');
         var my_seat = this.get('my_seat');
+        if (!my_seat) return false;
         return my_seat.money > amount_needed_to_call;
       },
 

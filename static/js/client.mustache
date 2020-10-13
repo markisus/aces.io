@@ -111,12 +111,25 @@ Loading
 	  <div class="el seat position{{((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{state}} {{#(seat_number == active_user_position)}}active{{/active}} {{#(win_screen && userid == win_screen.winner.userid)}}winner{{/winner}}">
 	  {{#disconnected}}<span class="disconnected">Disconnected</span>{{/disconnected}}
 
+            {{#(seat_number == dealer_position)}}
+            <span class="dealer-button white">D</span>
+            {{/dealer}}
+
+            {{#(seat_number == big_blind_position)}}
+            <span class="button yellow">BB</span>
+            {{/big_blind}}
+
+            {{#(seat_number == small_blind_position)}}
+            <span class="button yellow">SB</span>
+            {{/small_blind}}
+            
+
 	    {{#round_bet}}
 	      <span class="chips">
 	        ${{round_bet.toFixed(0)}}
 	      </span>
-	  {{/pot}}
-
+	    {{/round_bet}}
+            
 	  <!-- Join/Buy in menu -->
 	  {{#(state == 'empty' && !my_seat)}}
 	  {{#(show_buyin_menu != seat_number)}}
@@ -132,9 +145,11 @@ Loading
 
 	  <!-- User Display -->
 	  {{#userid}}
-	    <span class="user">{{name}} ${{money.toFixed(0)}}</span>
+	    <span class="user">{{name}} ${{money.toFixed(0)}} </span>
 	    {{#hole_cards}}
-              <span class="{{#is_win_card(.)}}win-card{{/win_card}} {{#is_lose_card(.)}}lose-card{{/lose_card}}">
+              <span class="
+                {{#is_win_hole_card(userid, .)}}win-card{{/win_card}}
+                {{#is_lose_hole_card(userid, .)}}lose-card{{/lose_card}}">
 	      <img src="{{get_card_url(.)}}" intro-outro="slideh" class="card-large"/>
               </span>
 	    {{/hole_cards}}
@@ -151,8 +166,12 @@ Loading
 
     {{#history}}
       {{#(category == 'phase_transition')}}
-      <b>{{phase}}</b>{{#history_community_cards : idx}}{{#(idx == 0)}}<br/>{{/idx}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/history_community_cards}}
-      {{/category}}
+      <b>{{phase}}</b>
+      {{^(phase == 'showdown')}}
+      {{#community_cards : idx}}{{#(idx == 0)}}<br/>{{/idx}}<img src="{{get_card_url(.)}}" class="card-tiny"/>
+      {{/community_cards}}
+      {{/not_showdown}}
+      {{/phase_transition}}
       
       {{#(category == 'text')}}
       {{message}}
@@ -160,10 +179,9 @@ Loading
 
       {{#(category == 'win_info')}}
       {{name}}
-      {{#hole_cards : idx}}
-      {{#(idx == 0)}}revealed {{/idx}}<img src="{{get_card_url(.)}}" class="card-tiny"/>
-      {{/hole_cards}} and won {{winnings}} {{#best_hand}}with {{>best_hand_description}} {{#hand}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/hand}} {{/best_hand}}
+      won {{winnings}} {{#best_hand}}with {{>best_hand_description}} {{#hand}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/hand}} {{/best_hand}}
       {{/win_info}}
+
       <br/>
     {{/history}}
 {{/game}}

@@ -219,9 +219,87 @@ class Game:
         return list(map(lambda seat: seat['userid'], seats))
 
 
-    def _start(self):
+    def _deal_card(self):
+        deck = self.data['deck']
+        card = deck[-1]
+        deck.pop()
+        return card
+        
+    def _get_can_bet_seats(self):
+        return self._filter_seats(
+            lambda seat:
+            seat['state'] == ready and \
+            (seat['round_bet'] < self._get_current_bet() or not seat['had_turn'])
+        )
+
+    def _can_start(self):
+        game = self.data
+        return game['game_state'] == wait_for_players \
+            and len(self._get_prepared_seats()) >= 2
+
+    def can_auto_advance(self):
+        if self.data['active_user_position'] is None \
+           and self.data['game_state'] != wait_for_players:
+            return True
+        if self._can_enter_pre_flop():
+            return True
+        return False
+
+    def _append_phase_transition_to_history(self):
+        phase_names = {
+            pre_flop: "pre-flop",
+            flop: "flop",
+            turn: "turn",
+            river: "river",
+            reveal: "showdown",
+            last_man_standing: "last man standing"
+        }
+        self._append_data_to_history(
+            category = "phase_transition",
+            data = {
+                "phase": phase_names.get(self.data['game_state'], self.data['game_state']),
+                "community_cards": list(self.data['community_cards'])
+            })
+
+
+    def _try_enter_last_man_standing(self):
+        still_standing_seats = self._get_still_standing_seats()
+        if len(still_standing_seats) == 1:
+            self._make_pot()
+            last_man = still_standing_seats[0]
+            self.data['win_screen'] = {'win_condition': 'last_man_standing'}
+            self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
+            self.data['game_state'] = last_man_standing
+            self.data['active_user_position'] = None
+            return True
+        return False
+
+    def _set_utg(self):
+        # Set under the gun (UTG)
+        utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
+        if len(utg_potentials) == 1:
+            # This can happen when everyone is all-in except one caller
+            # Then in the next round the caller would play himself only
+            # So do a check to avoid this
+            self.data['active_user_position'] = None
+        else:
+            dealer_position = self.data['dealer_position']
+            self.data['active_user_position'] = next_greatest(
+                dealer_position, utg_potentials
+            )
+
+    def _can_enter_pre_flop(self):
+        return self.data['game_state'] == wait_for_players \
+            and len(self._get_prepared_seats()) >= 2
+
+
+    def _enter_pre_flop(self):
+        if not self._can_enter_pre_flop():
+            raise RuntimeError("cannot enter pre-flop")
+
+        self.data['game_state'] = pre_flop
+
         self.data['win_screen'] = None
-        # Set Deck
         self.data['deck'] = self._make_shuffled_deck()
 
         # Ready more players
@@ -275,106 +353,7 @@ class Game:
                 card = self._deal_card()
                 seat['hole_cards'].append(card)
 
-        return True
-
-    def _deal_card(self):
-        deck = self.data['deck']
-        card = deck[-1]
-        deck.pop()
-        return card
-        
-    def _get_can_bet_seats(self):
-        return self._filter_seats(
-            lambda seat:
-            seat['state'] == ready and \
-            (seat['round_bet'] < self._get_current_bet() or not seat['had_turn'])
-        )
-
-    def _can_start(self):
-        game = self.data
-        return game['game_state'] == wait_for_players \
-            and len(self._get_prepared_seats()) >= 2
-
-    def can_auto_advance(self):
-        if self.data['active_user_position'] is None \
-           and self.data['game_state'] != wait_for_players:
-            return True
-        if self._can_start():
-            return True
-        return False
-
-    def _append_phase_transition_to_history(self):
-        phase_names = {
-            pre_flop: "pre-flop",
-            flop: "flop",
-            turn: "turn",
-            river: "river",
-            reveal: "showdown",
-            last_man_standing: "last man standing"
-        }
-        self._append_data_to_history(
-            category = "phase_transition",
-            data = {
-                "phase": phase_names.get(self.data['game_state'], self.data['game_state']),
-                "history_community_cards": list(self.data['community_cards'])
-            })
-
-
-    def _try_enter_last_man_standing(self):
-        still_standing_seats = self._get_still_standing_seats()
-        if len(still_standing_seats) == 1:
-            last_man = still_standing_seats[0]
-            self.data['win_screen'] = {'win_condition': 'last_man_standing'}
-            self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
-            self.data['game_state'] = last_man_standing
-            self.data['active_user_position'] = None
-            self._append_phase_transition_to_history()
-            return True
-        return False
-
-
-    def auto_advance(self):
-        # cannot advance if currently waiting for user move
-        if not self.data['active_user_position'] is None:
-            return False
-
-        if self.is_game_over():
-            if self.data['win_queue']:
-                self._award_next_winner()
-            else:
-                self._reset_data()
-            return True
-
-        if self._can_start():
-            self._start()
-
-        self._prepare_next_round()
-
-        if self._try_enter_last_man_standing():
-            return True
-        
-        current_state = STATE_TRANSITIONS[self.data['game_state']]
-        self.data['game_state'] = current_state
-
-        if current_state == reveal:
-            self._showdown()
-            return True
-        
-        # Deal Community Cards
-        num_community_cards = {
-            pre_flop: 0,
-            flop: 3,
-            turn: 1,
-            river: 1,
-        }[current_state]
-
-        for i in range(num_community_cards):
-            card = self._deal_card()
-            self.data['community_cards'].append(card)
-
-        self._append_phase_transition_to_history()
-
-        # Set under the gun (UTG)
+        # set utg to next after the big blind
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
         if len(utg_potentials) == 1:
             # This can happen when everyone is all-in except one caller
@@ -387,9 +366,62 @@ class Game:
                 big_blind_position, utg_potentials
             )
 
+    def _enter_flop(self):
+        self.data['game_state'] = flop
+        self._prepare_next_round()
+        for i in range(3):
+            card = self._deal_card()
+            self.data['community_cards'].append(card)
+        self._set_utg()
+
+    def _enter_turn(self):
+        self.data['game_state'] = turn
+        self._prepare_next_round()
+        card = self._deal_card()
+        self.data['community_cards'].append(card)
+        self._set_utg()
+
+    def _enter_river(self):
+        self.data['game_state'] = river
+        self._prepare_next_round()
+        card = self._deal_card()
+        self.data['community_cards'].append(card)
+        self._set_utg()
+
+    def auto_advance(self):
+        # cannot advance if currently waiting for user move
+        if not self.data['active_user_position'] is None:
+            return False
+
+        if self.is_game_over():
+            if self.data['win_queue']:
+                self._award_next_winner()
+                print("Awarded winner and win queue len", len(self.data['win_queue']))
+            else:
+                self._reset_data()
+                print("reset data and current state is", self.data['game_state'])
+            return True
+
+
+        if self._can_enter_pre_flop():
+            self._enter_pre_flop()
+        elif not self._try_enter_last_man_standing():
+            current_state = self.data['game_state']
+            if current_state == pre_flop:
+                self._enter_flop()
+            elif current_state == flop:
+                self._enter_turn()
+            elif current_state == turn:
+                self._enter_river()
+            elif current_state == river:
+                self._enter_showdown()
+
+        self._append_phase_transition_to_history()
+
         return True
 
-    def _showdown(self):
+    def _enter_showdown(self):
+        self.data['game_state'] = reveal
         best_hands = dict()
         standing_seats = self._get_still_standing_seats()
         for seat in standing_seats:
@@ -431,6 +463,7 @@ class Game:
 
     def _award_next_winner(self):
         win_info = self.data['win_queue'].pop(0)
+        print("Awarding winner", win_info)
         winnings = win_info['winnings']
         self.data['win_screen'].update(win_info)
         self.data['pot'] -= winnings
@@ -440,7 +473,7 @@ class Game:
 
         best_hand = win_info['winner'].get('best_hand', None)
         # hole_cards = winner_seat['hole_cards'] if best_hand else None
-        hole_cards = None
+        hole_cards = winner_seat['hole_cards']
 
         # simplified version for history
         self._append_data_to_history(category = 'win_info', data = {
@@ -515,6 +548,20 @@ class Game:
                 seat['last_move'] = None
         self.data['min_raise'] = self.data['big_blind']
 
+        # Set under the gun (UTG)
+        utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
+        if len(utg_potentials) == 1:
+            # This can happen when everyone is all-in except one caller
+            # Then in the next round the caller would play himself only
+            # So do a check to avoid this
+            self.data['active_user_position'] = None
+        else:
+            big_blind_position = self.data['big_blind_position']
+            self.data['active_user_position'] = next_greatest(
+                big_blind_position, utg_potentials
+            )
+
+
     def _reset_data(self):
         for seat in self.data['seats']:
             empty = self._make_empty_seat(seat['seat_number'])
@@ -529,7 +576,8 @@ class Game:
             seat['last_move'] = None
             if seat['state'] in [folded, all_in]:
                 seat['state'] = ready
-            if seat['money'] == 0:
+            if seat['money'] == 0 and seat['userid']:
+                self._append_msg_to_history("{} busted".format(seat['name']))
                 # For now when someone busts, they just get kicked
                 # seat['state'] = busted
                 seat.update(empty)
@@ -539,6 +587,8 @@ class Game:
         self.data['game_state'] = wait_for_players
         self.data['win_queue'] = []
         self.data['win_screen'] = None
+        self.data['active_user_position'] = None
+        self.data['game_state'] = wait_for_players
 
     def _append_data_to_history(self, category, data):
         tagged_data = {'category': category}
