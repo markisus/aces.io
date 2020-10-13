@@ -4,14 +4,14 @@ function url(s) {
          (((l.port != 80) && (l.port != 443)) ? ":" + l.port : "") + '/' + s;
 }
 
-function game_connect(gameid, callback) {
+function game_connect(gameid, preferred_name, callback) {
   var socketUrl = url('gamesocket/' + gameid)
   var ws = new WebSocket(socketUrl);
   var send = function(data) {
     data = JSON.stringify(data);
     ws.send(data);
   };
-  ws.onopen = function() { send({'action' : 'connect', 'gameid' : gameid}); };
+  ws.onopen = function() { send({'action' : 'connect', 'preferred_name': preferred_name}); };
   ws.onmessage = function(evt) { callback(evt.data); };
   return send
 }
@@ -282,6 +282,13 @@ var initialize_ractive = function(template, images_dir) {
       this.set('auto_call_amount', amount_needed);
     }
   });
+
+  ractive.on('change_name', event =>
+             {
+               new_name = ractive.get('new_name');
+               document.cookie = "name=" + encodeURIComponent(new_name);
+               send({'action' : 'change_name', 'name': new_name});
+             });
 
   window.addEventListener("keydown", event => {
     if (event.key == '0') {

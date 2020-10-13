@@ -37,10 +37,11 @@
         if (action == "synchronize_game" && ractive) {
             ractive.set('game', msg.game);
             ractive.set('userid',  msg.userid);
+            ractive.set('name', msg.name);
         }
     }
 
-    var send = game_connect("{{gameid}}", receive);
+    var send = game_connect("{{gameid}}", "{{preferred_name}}", receive);
 
     setInterval(function() {
         console.log("Pinging")

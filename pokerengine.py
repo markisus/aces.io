@@ -194,6 +194,13 @@ class Game:
             return True
         return False
 
+    def try_change_name(self, userid, name):
+        seat = self._find_seat_by_userid(userid)
+        if seat:
+            seat['name'] = name
+            return True
+        return False
+
     def _get_prepared_seats(self):
         prepared_user_states = set((ready, forcing_big_blind))
         return self._filter_seats(lambda seat: seat['state'] in prepared_user_states)

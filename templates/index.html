@@ -2,15 +2,6 @@
 Aces.io <br/>
 <a href="https://github.com/markisus/aces.io">github</a>
 <br/><br/>
-Current name: {{name}}
-
-<form method="post" action="/change_name">
-  {% module xsrf_form_html() %}
-  <input type="text" name="name"/>
-  <input type="submit" value="Set Name"/>
-</form>
-
-<br/>
 
 <form method="post" action="/new_game">
   {% module xsrf_form_html() %}

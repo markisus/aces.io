@@ -13,37 +13,15 @@ games = {}
 listeners = defaultdict(set)
 listener_userids = defaultdict(set)
 
-def get_name(handler):
-    name = handler.get_cookie('name', '')
-    name = urllib.parse.unquote(name).strip()
-    name = name or "no-name"
-    return name
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        userid = self.get_cookie('userid', None)
-        if not userid:
-            self.set_cookie('userid', str(uuid.uuid4()))
-        
-        name = get_name(self)
-
-        self.render("index.html", name=name)
-
-    def post(self):
-        name = self.get_argument('name', '')
-        self.set_cookie('name', urllib.parse.quote(name))
-        self.redirect('/')
+        self.render("index.html")
 
 class StatsHandler(tornado.web.RequestHandler):
     def get(self):
         self.write(str(games))
         
-class ChangeNameHandler(tornado.web.RequestHandler):
-    def post(self):
-        name = self.get_argument('name', '')
-        self.set_cookie('name', urllib.parse.quote(name))
-        self.redirect('/')
-
 class NewGameHandler(tornado.web.RequestHandler):
     def post(self):
         game_id = str(uuid.uuid4())
@@ -52,40 +30,39 @@ class NewGameHandler(tornado.web.RequestHandler):
 
 class GameHandler(tornado.web.RequestHandler):
     def get(self, gameid):
-        userid = self.get_cookie('userid', None)
-        if not userid:
-            self.set_cookie('userid', str(uuid.uuid4()))
+        preferred_name = self.get_cookie('name', '')
+        self.render("client.html",
+                    gameid = gameid,
+                    preferred_name = preferred_name)
 
-        self.render("client.html", gameid=gameid)
+name_counter = 0
+def make_name():
+    global name_counter
+    name_counter += 1
+    return "anon{}".format(name_counter)
 
 class GameSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, gameid):
         self.gameid = gameid
-        self.userid = self.get_cookie('userid')
-        if not self.userid:
-            self.write_message({'error': 'no userid'})
-            self.close()
-            return
+        self.userid = str(uuid.uuid4())
+        self.name = None # name is set on connect
 
+        listeners[gameid].add(self)
+        if not games.get(self.gameid, None):
+            games[self.gameid] = pokerengine.Game(self.gameid, room_size)
+        self.game = games[self.gameid]
+        
     def on_message(self, message):
         data = json.loads(message)
         action = data['action']
 
         if action == 'connect':
-            gameid = data['gameid']
-            game = games.get(gameid, None)
-            if not game:
-                game = pokerengine.Game(gameid, room_size)
-                games[gameid] = game
-            self.game = game
-            self.gameid = gameid            
-
-            if self.userid in listener_userids[gameid]:
-                self.write_message({'warning': 'user already connected from another location'})
-
-            listeners[gameid].add(self)
-            listener_userids[gameid].add(self.userid)
-
+            preferred_name = urllib.parse.unquote(data.get('preferred_name', ''))
+            if preferred_name:
+                self.name = preferred_name
+            else:
+                self.name = make_name()
+            
             reconnected = self.game.try_reconnect(self.userid)
             if reconnected:
                 self.force_all_clients_synchronize()
@@ -97,8 +74,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         
         success = False
         if action == 'buy_in':
-            name = get_name(self)
-            success = self.game.try_join(self.userid, name, data['seat_number'], data['buy_in'])
+            success = self.game.try_join(self.userid, self.name, data['seat_number'], data['buy_in'])
 
         if action == 'fold':
             success = self.game.try_fold(self.userid)
@@ -113,8 +89,11 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if action == 'all_in':
             success = self.game.try_all_in(self.userid)
 
-        if action == 'reconnect':
-            success = self.game.try_reconnect(self.userid)
+        if action == 'change_name':
+            self.name = data['name']
+            success = self.game.try_change_name(self.userid, self.name)
+            if not success:
+                self.force_client_synchronize()
 
         if success:
             self.force_all_clients_synchronize()
@@ -151,7 +130,8 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         return {
             'action': 'synchronize_game', 
             'game': self.game.make_facade_for_user(self.userid), 
-            'userid': self.userid 
+            'userid': self.userid,
+            'name': self.name,
         }
 
     def force_client_synchronize(self):
@@ -170,7 +150,6 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if self.game:
             result = self.game.try_disconnect(self.userid)
         listeners[self.gameid].remove(self)
-        listener_userids[self.gameid].remove(self.userid)
         if result:
             self.force_all_clients_synchronize()
             self.try_start_next_phase()
@@ -179,7 +158,6 @@ application = tornado.web.Application(
     [
         (r"/", MainHandler),
         (r"/stats", StatsHandler),
-        (r"/change_name", ChangeNameHandler),
         (r"/new_game", NewGameHandler),
         (r"/game/([a-zA-Z0-9\-]+)", GameHandler),
         (r"/gamesocket/([a-zA-Z0-9\-]+)", GameSocketHandler),
