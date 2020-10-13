@@ -11,8 +11,6 @@ import pokerengine
 room_size = 10
 games = {}
 listeners = defaultdict(set)
-listener_userids = defaultdict(set)
-
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -20,7 +18,8 @@ class MainHandler(tornado.web.RequestHandler):
 
 class StatsHandler(tornado.web.RequestHandler):
     def get(self):
-        self.write(str(games))
+        for gameid, l in listeners.items():
+            self.write("{}: {}".format(gameid, len(l)))
         
 class NewGameHandler(tornado.web.RequestHandler):
     def post(self):
@@ -62,12 +61,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
                 self.name = preferred_name
             else:
                 self.name = make_name()
-            
-            reconnected = self.game.try_reconnect(self.userid)
-            if reconnected:
-                self.force_all_clients_synchronize()
-            else:
-                self.force_client_synchronize()
+            self.force_client_synchronize()
 
         if action == 'ping':
             self.write_message({'info': 'pong'})
@@ -75,6 +69,9 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         success = False
         if action == 'buy_in':
             success = self.game.try_join(self.userid, self.name, data['seat_number'], data['buy_in'])
+
+        if action == 'replace':
+            success = self.game.try_replace(self.userid, self.name, data['seat_number'])
 
         if action == 'fold':
             success = self.game.try_fold(self.userid)
@@ -154,6 +151,15 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             self.force_all_clients_synchronize()
             self.try_start_next_phase()
 
+def cleanup():
+    dead_gameids = []
+    for gameid, listeners in listeners.items():
+        if len(listeners) == 0:
+            dead_gameids.append(gameid)
+    for dead_gameid in dead_gameids:
+        del games[dead_gameid]
+        del listeners[dead_gameid]
+
 application = tornado.web.Application(
     [
         (r"/", MainHandler),
@@ -175,4 +181,5 @@ if __name__ == "__main__":
     parser.add_argument('--port', dest='P', type=int, help='port number to listen on', default=8888)
     args = parser.parse_args()
     application.listen(args.P)
+    tornado.ioloop.PeriodicCallback(cleanup, 10000)
     tornado.ioloop.IOLoop.current().start()

@@ -187,9 +187,14 @@ class Game:
             return True
         return False
 
-    def try_reconnect(self, userid):
-        seat = self._find_seat_by_userid(userid)
-        if seat:
+    def try_replace(self, userid, name, seat_number):
+        if seat_number < 0 or seat_number >= len(self.data['seats']):
+            return False
+        seat = self.data['seats'][seat_number]
+        if seat['disconnected']:
+            #can only replace a disconnected user
+            seat['userid'] = userid
+            seat['name'] = name
             seat['disconnected'] = False
             return True
         return False
@@ -403,12 +408,9 @@ class Game:
         if self.is_game_over():
             if self.data['win_queue']:
                 self._award_next_winner()
-                print("Awarded winner and win queue len", len(self.data['win_queue']))
             else:
                 self._reset_data()
-                print("reset data and current state is", self.data['game_state'])
             return True
-
 
         if self._can_enter_pre_flop():
             self._enter_pre_flop()

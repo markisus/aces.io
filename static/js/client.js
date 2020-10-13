@@ -258,6 +258,11 @@ var initialize_ractive = function(template, images_dir) {
     });
   });
 
+  ractive.on('replace', event => {
+    send({'action' : 'replace',
+          'seat_number' : event.context.seat_number});
+  });
+
   ractive.on('fold', function(event) { send({'action' : 'fold'}); });
 
   ractive.on('call_check', function(event) { send({'action' : 'call'}); });

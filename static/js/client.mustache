@@ -8,6 +8,7 @@
 {{#(type == 'royal flush')}} royal flush {{/royal_flush}}
 {{#(type == 'straight flush')}} straight flush {{high_rank}} high {{/straight_flush}}
 {{#(type == 'straight')}} straight {{high_rank}} high {{/straight}}
+{{#(type == 'flush')}} flush {{/straight}}
 {{/partial}}
 
 {{^game}}
@@ -131,6 +132,9 @@ Current Name <b>{{name}}</b> <br/>
 	        ${{round_bet.toFixed(0)}}
 	      </span>
 	    {{/round_bet}}
+
+            <!-- replace disconnected user -->
+            {{#disconnected}}<button class="join_button pure-button pure-button-primary" on-click="replace">Steal Seat</button>{{/disconnected}}
             
 	  <!-- Join/Buy in menu -->
 	  {{#(state == 'empty' && !my_seat)}}
