@@ -73,20 +73,24 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
 
         if action == 'connect':
             gameid = data['gameid']
+            game = games.get(gameid, None)
+            if not game:
+                game = pokerengine.Game(gameid, room_size)
+                games[gameid] = game
+            self.game = game
+            self.gameid = gameid            
+
             if self.userid in listener_userids[gameid]:
                 self.write_message({'warning': 'user already connected from another location'})
+
             listeners[gameid].add(self)
             listener_userids[gameid].add(self.userid)
-            self.gameid = gameid
-            self.game = games.get(gameid, None)
-            if not self.game:
-                self.write_message({'error': 'Game does not exist'});
+
+            reconnected = self.game.try_reconnect(self.userid)
+            if reconnected:
+                self.force_all_clients_synchronize()
             else:
-                reconnected = self.game.try_reconnect(self.userid)
-                if reconnected:
-                    self.force_all_clients_synchronize()
-                else:
-                    self.force_client_synchronize()
+                self.force_client_synchronize()
 
         if action == 'ping':
             self.write_message({'info': 'pong'})
@@ -125,9 +129,9 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             delay = 0.5
             game_state = self.game.data['game_state']
             if game_state == 'last_man_standing':
-                delay = 2.5
+                delay = 1.0
             if game_state == 'reveal':
-                delay = 3
+                delay = 2.0
 
             self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
 
@@ -162,7 +166,9 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             listener.write_message(msg)
 
     def on_close(self):
-        result = self.game.try_disconnect(self.userid)
+        result = False
+        if self.game:
+            result = self.game.try_disconnect(self.userid)
         listeners[self.gameid].remove(self)
         listener_userids[self.gameid].remove(self.userid)
         if result:

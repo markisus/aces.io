@@ -3,195 +3,48 @@
 <link rel="stylesheet" href="{{static_url("css/client.css")}}">
 <script src='{{static_url("js/ractive.js")}}'></script>
 <script src='{{static_url("js/ractive-transitions-slidehorizontal.js")}}'></script>
-
-<script>
-function copyURL() {
-navigator.clipboard.writeText(window.location.href);
-}
-</script>
-
+<script src="{{ static_url("js/client.js")}}"></script>
 </head>
 
 <body>
+  <h3>
+    <button onclick="navigator.clipboard.writeText(window.location.href)">📋 Copy Game Address</button>
+  </h3>  
   <div id="content" class="content"></div>
 
-  
-
-  <script id='template' type='text/ractive'>
-    {{!^game}}
-    Loading
-    {{!/game}}
-
-    {{!#game}}
-
-    <br/>
-    <h3>
-      <button onclick="copyURL()">📋 Copy Game Address</button>
-    <div>
-      <div class="circle-container">
-	<div class="el table">
-	  {{!#pot}}
-	  <span class="chips">
-	    ${{!pot.toFixed(0)}}
-	  </span>
-	  {{!/pot}}
-
-	  <!-- Community Cards --><br/>
-	  {{!#community_cards}}
-          <span class="{{!#is_win_card(.)}}win-card{{!/win_card}} {{!#is_lose_card(.)}}lose-card{{!/lose}}">
-	    <img intro-outro="slideh" class="card-large" src="{{!get_card_url(.)}}"/>
-          </span>
-	  {{!/community_cards}}
-	  {{!#win_screen}}
-	  <br/>
-	  <span class="winner">
-	    {{!#(win_condition == 'last_man_standing')}}
-	    {{!this.winner.name}} won <span class="winnings">{{!this.winnings}}</span>!
-	    {{!/last_man_standing}}
-
-	    {{!#(win_condition == 'showdown')}}
-	    {{!#winner}}
-	    {{!name}} won <span class="winnings">{{!winnings}}</span> with {{!best_hand.type}}<br/>
-
-	    {{!/winner}}
-	    {{!/showdown}}
-	  </span>
-	  {{!/win_screen}}
-	</div>
-
-        <div class="el">
-	  <div class="actions">
-	    <span>
-	      {{!#can_i_bet_later}}
-	      <!-- Auto action 
-	           check check-fold call-any
-	           fold call money, call any
-	        -->
-	      {{!#call_check == 'check'}}
-	      <!-- Remark: here a check's value is "call" because a check is a call of 0 -->
-	      <button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">check</button><br/>
-	      <button class="pure-button {{!# auto_action == 'check_fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
-	      <button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
-	      {{!/check}}
-
-	      {{!#call_check == 'call'}}
-	      <button class="pure-button {{!# auto_action == 'fold'}}button-selected{{!/button_on}}" on-click="auto_action" value="fold">fold</button><br/>
-	      <button class="pure-button {{!# auto_action == 'call'}}button-selected{{!/button_on}}" on-click="auto_action" value="call">call {{!amount_needed_to_call}}</button><br/>
-	      <button class="pure-button {{!# auto_action == 'call_any'}}button-selected{{!/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
-	      {{!/call}}
-	      {{!/can_i_bet_later}}
-
-	      <!-- Action 
-	           fold
-	           check
-	           call (all-in)
-	           raise-to (all-in)
-	        -->
-
-	      {{!#is_my_turn}}
-	      {{!^raise_menu}}
-	      {{!#call_check=='call'}}<button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{!/display_fold}}
-	      <button class="pure-button pure-button-primary" on-click="all_in">all In</button><br/>
-	      {{!#can_call}}
-	      <button class="pure-button pure-button-primary" on-click="call_check">{{!call_check}} {{!#amount_needed_to_call>0}}{{!amount_needed_to_call}}{{!/amt}}</button><br/>
-	      {{!/can_call}}
-	      {{!#can_raise}}
-	      <button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
-	      {{!/can_raise}}
-	      {{!/hide_raise_menu}}
-
-	      <!--  raise menu -->
-	      {{!#raise_menu}}
-	      <button class="pure-button" on-click="raise_increase">+</button>
-	      <button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
-	      <button class="pure-button pure-button-primary" on-click="raise">raise to {{!current_bet + raise_amount}}</button><br/><br/>
-	      {{!/raise_menu}}
-	      {{!/is_my_turn}}
-	    </span>
-	  </div>
-        </div>
-
-	{{!#seats}}
-	<div class="el seat position{{!((seat_number -  maybe_my_seat_number + 5) + 10)%10}} {{!state}} {{!#(seat_number == active_user_position)}}active{{!/active}} {{!#(win_screen && userid == win_screen.winner.userid)}}winner{{!/winner}}">
-	  {{!#disconnected}}<span class="disconnected">Disconnected</span>{{!/disconnected}}
-
-	  {{!#round_bet}}
-	  <span class="chips">
-	    ${{!round_bet.toFixed(0)}}
-	  </span>
-	  {{!/pot}}
-
-	  <!-- Join/Buy in menu -->
-	  {{!#(state == 'empty' && !my_seat)}}
-	  {{!#(show_buyin_menu != seat_number)}}
-	  <button class="join_button pure-button pure-button-primary" on-click="show_buyin_menu">Join</button>
-	  {{!/step1}}
-	  {{!#(show_buyin_menu == seat_number)}}
-	  <button class="pure-button" on-click="buy_in_increase">+</button>
-	  <button class="pure-button" on-click="buy_in_decrease">-</button> <br/>
-	  <button class="pure-button pure-button-primary" on-click="buy_in">buy in for {{!buy_in}}</button>
-	  {{!/step2}}
-	  {{!/buyin_menu}}
-	  <!-- End buy in menu -->
-
-	  <!-- User Display -->
-	  {{!#userid}}
-	  <span class="user">{{!name}} ${{!money.toFixed(0)}}</span>
-	  {{!#hole_cards}}
-          <span class="{{!#is_win_card(.)}}win-card{{!/win_card}} {{!#is_lose_card(.)}}lose-card{{!/lose_card}}">
-	    <img src="{{!get_card_url(.)}}" intro-outro="slideh" class="card-large"/>
-          </span>
-	  {{!/hole_cards}}
-	  {{!/userid}}
-
-	  <span class="last_move">
-	    {{!last_move}}
-	  </span>
-	</div>
-	{{!/seats}}
-      </div>
-
-    </div>
-    {{!/game}}
-  </script>
-
-  <script src="{{ static_url("js/client.js")}}"></script>
   <script>
-    ractive = undefined;
+    var images_dir = "{{ static_url("images/") }}";
+
+    var ractive = undefined;
+    fetch("{{static_url("js/client.mustache")}}")
+    .then(response => response.text())
+    .then(text => {
+        ractive = initialize_ractive(text, images_dir);
+    });
     
-    <!-- Action handlers -->
-    var synchronize_game = function(msg) {
-    if(!ractive) {
-    ractive = initialize_ractive("{{ static_url("images/") }}", msg.game, msg.userid);
-    }
-    else {
-    ractive.set('game', msg.game);
-    }
-    }
-
-
     var receive = function(msg) {
-    var msg = JSON.parse(msg);
-    console.log(msg)
+        var msg = JSON.parse(msg);
+        console.log(msg)
 
-    if (msg['warning']) {
-    ractive.set('warning', msg['warning']);
-    }
+        if (msg['warning']) {
+            alert('warning: ' + msg['warning']);
+        }
+        if (msg['error']) {
+            alert('error ' + msg['error'])
+        }
 
-    if (msg['error']) {
-    ractive.set('error', msg['error'])
-    }
-
-    var action = msg['action']
-    if (action == "synchronize_game") synchronize_game(msg);
-    window.msg = msg
+        var action = msg['action'];
+        if (action == "synchronize_game" && ractive) {
+            ractive.set('game', msg.game);
+            ractive.set('userid',  msg.userid);
+        }
     }
 
     var send = game_connect("{{gameid}}", receive);
 
     setInterval(function() {
-    console.log("Pinging")
-    send({'action': 'ping'});
+        console.log("Pinging")
+        send({'action': 'ping'});
     }, 40000)
   </script>
 

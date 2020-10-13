@@ -33,6 +33,13 @@ var initialize_ractive = function(template, images_dir) {
         return images_dir + "cards/compact/" + suit + "/" + rank + ".svg";
       },
 
+      get_card_rank : function(card) {
+        if (!card)
+          card = 'unknown';
+        var card_array = card.split('.');
+        return card_array[0];
+      },
+
       is_win_card : function(card) {
         var win_cards = ractive.get('game.win_screen.winner.best_hand.hand');
         win_cards = win_cards || [];

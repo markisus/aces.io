@@ -303,12 +303,40 @@ class Game:
             return True
         return False
 
+    def _append_phase_transition_to_history(self):
+        phase_names = {
+            pre_flop: "pre-flop",
+            flop: "flop",
+            turn: "turn",
+            river: "river",
+            reveal: "showdown",
+            last_man_standing: "last man standing"
+        }
+        self._append_data_to_history(
+            category = "phase_transition",
+            data = {
+                "phase": phase_names.get(self.data['game_state'], self.data['game_state']),
+                "history_community_cards": list(self.data['community_cards'])
+            })
+
+
+    def _try_enter_last_man_standing(self):
+        still_standing_seats = self._get_still_standing_seats()
+        if len(still_standing_seats) == 1:
+            last_man = still_standing_seats[0]
+            self.data['win_screen'] = {'win_condition': 'last_man_standing'}
+            self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
+            self.data['game_state'] = last_man_standing
+            self.data['active_user_position'] = None
+            self._append_phase_transition_to_history()
+            return True
+        return False
+
+
     def auto_advance(self):
         # cannot advance if currently waiting for user move
         if not self.data['active_user_position'] is None:
             return False
-
-        print("Auto advancing!")
 
         if self.is_game_over():
             if self.data['win_queue']:
@@ -322,32 +350,15 @@ class Game:
 
         self._prepare_next_round()
 
-        still_standing_seats = self._get_still_standing_seats()
-        if len(still_standing_seats) == 1:
-            last_man = still_standing_seats[0]
-            self.data['win_screen'] = {'win_condition': 'last_man_standing'}
-            self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
-            self.data['game_state'] = last_man_standing
-            self._append_msg_to_history("== Last man standing ==")
+        if self._try_enter_last_man_standing():
             return True
-        else:
-            current_state = STATE_TRANSITIONS[self.data['game_state']]
-            self.data['game_state'] = current_state
+        
+        current_state = STATE_TRANSITIONS[self.data['game_state']]
+        self.data['game_state'] = current_state
 
-            if current_state == pre_flop:
-                self._append_msg_to_history("== Pre-flop ==")
-            if current_state == flop:
-                self._append_msg_to_history("== Flop ==")
-            if current_state == turn:
-                self._append_msg_to_history("== Turn ==")
-            if current_state == river:
-                self._append_msg_to_history("== River ==")
-            if current_state == reveal:
-                self._append_msg_to_history("== Showdown ==")
-
-            if current_state == reveal:
-                self._showdown()
-                return True
+        if current_state == reveal:
+            self._showdown()
+            return True
         
         # Deal Community Cards
         num_community_cards = {
@@ -360,6 +371,8 @@ class Game:
         for i in range(num_community_cards):
             card = self._deal_card()
             self.data['community_cards'].append(card)
+
+        self._append_phase_transition_to_history()
 
         # Set under the gun (UTG)
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
@@ -424,9 +437,19 @@ class Game:
         winner_seat = self._find_seat_by_userid(win_info['winner']['userid'])
         if winner_seat:
             winner_seat['money'] += winnings
-        self._append_msg_to_history("Awarded {name} with {winnings}".format(
-                                    name = winner_seat['name'],
-                                    winnings = winnings))
+
+        best_hand = win_info['winner'].get('best_hand', None)
+        # hole_cards = winner_seat['hole_cards'] if best_hand else None
+        hole_cards = None
+
+        # simplified version for history
+        self._append_data_to_history(category = 'win_info', data = {
+            'name': win_info['winner']['name'],
+            'userid': win_info['winner']['userid'],
+            'winnings': winnings,
+            'best_hand': best_hand,
+            'hole_cards': hole_cards
+        })
 
     def _get_current_bet(self):
         bet = 0
@@ -466,17 +489,20 @@ class Game:
     def _end_turn(self, seat):
         seat['had_turn'] = True
         self._append_last_move_to_history(seat)
-        
-        active_user_position = self.data['active_user_position']
-        next_active_positions = self._extract_seat_numbers(self._get_can_bet_seats())
-        next_active_position = next_greatest(
-            active_user_position, next_active_positions
-        )
-        self.data['active_user_position'] = next_active_position
-        if next_active_position:
-            active_user = self.data['seats'][next_active_position]
-            if active_user['disconnected']:
-                self.try_fold(active_user['userid'])
+
+        # set next user if we are not in last man standing state
+        if not self._try_enter_last_man_standing():
+            active_user_position = self.data['active_user_position']
+            next_active_positions = self._extract_seat_numbers(self._get_can_bet_seats())
+            next_active_position = next_greatest(
+                active_user_position, next_active_positions
+            )
+            self.data['active_user_position'] = next_active_position
+            if next_active_position:
+                active_user = self.data['seats'][next_active_position]
+                if active_user['disconnected']:
+                    self.try_fold(active_user['userid'])
+                    
 
     def _prepare_next_round(self):
         self._make_pot()
@@ -514,8 +540,15 @@ class Game:
         self.data['win_queue'] = []
         self.data['win_screen'] = None
 
+    def _append_data_to_history(self, category, data):
+        tagged_data = {'category': category}
+        tagged_data.update(data)
+        self.data['history'].append(tagged_data)
+        while len(self.data['history']) > 10:
+            self.data['history'].popleft()
+
     def _append_msg_to_history(self, msg):
-        self.data['history'].append(msg)
+        self.data['history'].append({'category': 'text', 'message':msg})
         while len(self.data['history']) > 10:
             self.data['history'].popleft()
 
@@ -529,7 +562,7 @@ class Game:
         if move == 'check' or move == 'call':
             msg = "{name} {move}ed ({amt})".format(name = name, amt = amt, move = move)
         if move == 'raise':
-            msg = "{name} raised to {amt}".format(name = name, amt = amt)
+            msg = "{name} raised ({amt})".format(name = name, amt = amt)
         if move == 'fold':
             msg = "{name} folded".format(name = name)
         self._append_msg_to_history(msg)

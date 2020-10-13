@@ -29,6 +29,11 @@
     background-color: 99FFFF;
 }
 
+.card-tiny {
+    width: 1.5em;
+    height: 2em;
+}
+
 .card-small {
     width: 3.0em;
     height: 5.2em;
@@ -46,7 +51,7 @@
 }
 
 .lose-card {
-    opacity: .4;
+    opacity: .15;
 }
 
 .disconnected {

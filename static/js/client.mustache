@@ -1,3 +1,15 @@
+{{#partial best_hand_description}}
+{{#(type == 'pair')}} pair of {{rank}}s {{/pair}}
+{{#(type == 'quads')}} quad {{rank}}s with {{get_card_rank(kicker)}} kicker  {{/quads}}
+{{#(type == 'three of a kind')}} three of a kind {{rank}}s  {{/trips}}
+{{#(type == 'two pair')}} two pairs {{first_rank}}s, {{second_rank}}s  {{/two_pair}}
+{{#(type == 'full house')}} full house of {{triple_rank}}s, {{double_rank}}s  {{/full_house}}
+{{#(type == 'high card')}} {{high_rank}} high {{/high_card}}
+{{#(type == 'royal flush')}} royal flush {{/royal_flush}}
+{{#(type == 'straight flush')}} straight flush {{high_rank}} high {{/straight_flush}}
+{{#(type == 'straight')}} straight {{high_rank}} high {{/straight}}
+{{/partial}}
+
 {{^game}}
 Loading
 {{/game}}
@@ -19,7 +31,7 @@ Loading
             </span>
 	  {{/community_cards}}
 	  {{#win_screen}}
-	    <br/>
+	    <br/><br/><br/><br/>
 	    <span class="winner">
 	      {{#(win_condition == 'last_man_standing')}}
               {{#winner}}
@@ -29,8 +41,12 @@ Loading
 
 	      {{#(win_condition == 'showdown')}}
 	      {{#winner}}
-	        {{name}} won <span class="winnings">{{winnings}}</span> with {{best_hand.type}}<br/>
-
+	        {{name}} won <span class="winnings">{{winnings}}</span> with
+                {{#best_hand}}
+                  {{>best_hand_description}}
+                <br/>
+                {{#hand}}<img src="{{get_card_url(.)}}" class="card-small"/>{{/hand}}<br/>
+                {{/best_hand}}
 	      {{/winner}}
 	      {{/showdown}}
 	    </span>
@@ -47,8 +63,8 @@ Loading
 	        -->
 	        {{#call_check == 'check'}}
 	        <!-- Remark: here a check's value is "call" because a check is a call of 0 -->
-	        <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">check</button><br/>
 	        <button class="pure-button {{# auto_action == 'check_fold'}}button-selected{{/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
+	        <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">check</button><br/>
 	        <button class="pure-button {{# auto_action == 'call_any'}}button-selected{{/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
 	        {{/check}}
 
@@ -69,13 +85,14 @@ Loading
 	      {{#is_my_turn}}
 	        {{^raise_menu}}
 	          {{#call_check=='call'}}<button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{/display_fold}}
-	          <button class="pure-button pure-button-primary" on-click="all_in">all in</button><br/>
+
 	          {{#can_call}}
 	            <button class="pure-button pure-button-primary" on-click="call_check">{{call_check}} {{#amount_needed_to_call>0}}{{amount_needed_to_call}}{{/amt}}</button><br/>
 	          {{/can_call}}
 	          {{#can_raise}}
-	            <button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button>
+	            <button class="pure-button pure-button-primary" on-click="show_raise_menu">raise</button> <br/>
 	          {{/can_raise}}
+                  <button class="pure-button pure-button-primary" on-click="all_in">all in</button><br/>
 	          {{/hide_raise_menu}}
 
 	          <!--  raise menu -->
@@ -84,6 +101,7 @@ Loading
 	            <button class="pure-button" on-click="raise_decrease">-</button> <button class="pure-button" on-click="hide_raise_menu">x</button><br/>
 	            <button class="pure-button pure-button-primary" on-click="raise">raise to {{current_bet + raise_amount}}</button><br/><br/>
 	          {{/raise_menu}}
+                  
 	      {{/is_my_turn}}
 	    </span>
 	  </div>
@@ -132,6 +150,20 @@ Loading
     </div>
 
     {{#history}}
-      {{this}} <br/>
+      {{#(category == 'phase_transition')}}
+      <b>{{phase}}</b>{{#history_community_cards : idx}}{{#(idx == 0)}}<br/>{{/idx}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/history_community_cards}}
+      {{/category}}
+      
+      {{#(category == 'text')}}
+      {{message}}
+      {{/text}}
+
+      {{#(category == 'win_info')}}
+      {{name}}
+      {{#hole_cards : idx}}
+      {{#(idx == 0)}}revealed {{/idx}}<img src="{{get_card_url(.)}}" class="card-tiny"/>
+      {{/hole_cards}} and won {{winnings}} {{#best_hand}}with {{>best_hand_description}} {{#hand}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/hand}} {{/best_hand}}
+      {{/win_info}}
+      <br/>
     {{/history}}
 {{/game}}
