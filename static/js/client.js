@@ -41,17 +41,19 @@ var initialize_ractive = function(template, images_dir) {
       },
 
       is_win_card : function(card) {
-        if (ractive.get('game.win_screen.win_condition') != 'showdown') return false;
-        if (!ractive.get('game.win_screen.winner')) return false;
-        var win_cards = ractive.get('game.win_screen.winner.best_hand.hand');
+        if (this.get('game.win_screen.win_condition') != 'showdown') return false;
+        if (!this.get('game.win_screen.winner')) return false;
+        var win_cards = this.get('game.win_screen.winner.best_hand.hand');
         win_cards = win_cards || [];
         return win_cards.indexOf(card) >= 0
       },
 
       is_lose_card : function(card) {
-        if (ractive.get('game.win_screen.win_condition') != 'showdown') return false;
-        if (!ractive.get('game.win_screen.winner')) return false;
-        return !ractive.get('is_win_card')(card);
+        if (this.get('game.win_screen.win_condition') != 'showdown') return false;
+        if (!this.get('game.win_screen.winner')) return false;
+
+        // `this` must be piped
+        return !this.get('is_win_card').apply(this, [card]);
       },
     },
 
@@ -155,64 +157,64 @@ var initialize_ractive = function(template, images_dir) {
     }
   });
 
-  ractive.on('show_buyin_menu', event => {
-    ractive.set('show_buyin_menu', event.context.seat_number);
-    ractive.set('buy_in', ractive.get('game.min_buy_in'))
+  ractive.on('show_buyin_menu', function(event) {
+    this.set('show_buyin_menu', event.context.seat_number);
+    this.set('buy_in', this.get('game.min_buy_in'))
   });
 
-  ractive.on('buy_in_increase', event => {
-    var current = ractive.get('buy_in');
-    var cap = ractive.get('game.max_buy_in');
-    var next = current + ractive.get('buy_in_increment');
+  ractive.on('buy_in_increase', function(event) {
+    var current = this.get('buy_in');
+    var cap = this.get('game.max_buy_in');
+    var next = current + this.get('buy_in_increment');
     var result = Math.min(next, cap);
-    ractive.set('buy_in', result);
+    this.set('buy_in', result);
   });
 
-  ractive.on('buy_in_decrease', event => {
-    var current = ractive.get('buy_in');
-    var next = current - ractive.get('buy_in_increment');
-    var result = Math.max(next, ractive.get('game.min_buy_in'));
-    ractive.set('buy_in', result);
+  ractive.on('buy_in_decrease', function(event) {
+    var current = this.get('buy_in');
+    var next = current - this.get('buy_in_increment');
+    var result = Math.max(next, this.get('game.min_buy_in'));
+    this.set('buy_in', result);
   });
 
-  ractive.on('show_raise_menu', event => {
-    ractive.set('raise_menu', true);
-    ractive.set('raise_amount', ractive.get('game.min_raise'));
+  ractive.on('show_raise_menu', function(event) {
+    this.set('raise_menu', true);
+    this.set('raise_amount', this.get('game.min_raise'));
   });
 
   ractive.on('hide_raise_menu',
-             function(event) { ractive.set('raise_menu', false); });
+             function(event) { this.set('raise_menu', false); });
 
-  ractive.on('raise_increase', event => {
-    var my_seat = ractive.get('my_seat')
-    var amount_needed_to_call = ractive.get('amount_needed_to_call');
-    var next = ractive.get('raise_amount') + ractive.get('raise_increment');
-    ractive.set('raise_amount',
+  ractive.on('raise_increase', function(event) {
+    var my_seat = this.get('my_seat')
+    var amount_needed_to_call = this.get('amount_needed_to_call');
+    var next = this.get('raise_amount') + this.get('raise_increment');
+    this.set('raise_amount',
                 Math.min(my_seat.money - amount_needed_to_call, next));
   });
 
-  ractive.on('raise_decrease', event => {
-    var current = ractive.get('raise_amount');
-    var next = current - ractive.get('raise_increment');
-    var result = Math.max(next, ractive.get('game.min_raise'));
-    ractive.set('raise_amount', result);
+  ractive.on('raise_decrease', function(event) {
+    var current = this.get('raise_amount');
+    var next = current - this.get('raise_increment');
+    var result = Math.max(next, this.get('game.min_raise'));
+    this.set('raise_amount', result);
   });
 
   ractive.on('hide_raise_menu',
-             event => ractive.set('raise_menu', false));
+             function(event) { this.set('raise_menu', false) });
 
   ractive.observe('is_my_turn', function(current, old, path) {
     if (!current)
-      ractive.set('raise_menu', false);
+      this.set('raise_menu', false);
     if (current) {
-      var auto_action = ractive.get('auto_action');
-      var amount_needed = ractive.get('amount_needed_to_call');
+      var auto_action = this.get('auto_action');
+      var amount_needed = this.get('amount_needed_to_call');
       if (auto_action == 'call_any') {
         send({'action' : 'call'});
       }
       if (auto_action == 'call') {
         console.log("Sending call or check due to auto action.");
-        var auto_call_amount = ractive.get('auto_call_amount');
+        var auto_call_amount = this.get('auto_call_amount');
         if (auto_call_amount >= amount_needed)
           send({'action' : 'call'});
       }
@@ -225,39 +227,40 @@ var initialize_ractive = function(template, images_dir) {
         }
       }
 
-      ractive.set('auto_action', ''); // reset auto action
+      this.set('auto_action', ''); // reset auto action
     }
   });
 
   ractive.observe('game.next_move_due', function(current, old, path) {
-    if (!ractive.get('is_any_user_active')) {
+    if (!this.get('is_any_user_active')) {
       return;
     }
-    var move_due = ractive.get('game.next_move_due');
-    var curr_time = ractive.get('timestamp');
+    var move_due = this.get('game.next_move_due');
+    var curr_time = this.get('timestamp');
     var move_time_left = move_due - curr_time
 
-    ractive.set('move_time_left', move_time_left);
-    ractive.animate('move_time_left', 0, { duration: move_time_left * 1000 }); 
+    this.set('move_time_left', move_time_left);
+    this.animate('move_time_left', 0, { duration: move_time_left * 1000 }); 
     console.log("Move timer updated to", move_time_left);
   });
 
   // Reset auto action
   ractive.observe('amount_needed_to_call', function(current, old) {
-    var auto_action = ractive.get('auto_action');
+    var auto_action = this.get('auto_action');
     if (current > old && auto_action == 'call')
-      ractive.set('auto_action', '');
+      this.set('auto_action', '');
   });
 
   ractive.observe('game.game_state',
-                  function(current, old) { ractive.set('auto_action', ''); });
+                  function(current, old) { this.set('auto_action', ''); });
 
-  ractive.on('buy_in', event =>
+  ractive.on('buy_in', function(event) {
     send({
       'action' : 'buy_in',
-      'buy_in' : ractive.get('buy_in'),
+      'buy_in' : this.get('buy_in'),
       'seat_number' : event.context.seat_number
-    }));
+    });
+  });
 
   ractive.on('replace', event => 
     send({'action' : 'replace',
@@ -267,79 +270,79 @@ var initialize_ractive = function(template, images_dir) {
 
   ractive.on('call_check', event => send({'action' : 'call'}));
 
-  ractive.on('raise', event => {
-    var raise_amount = ractive.get('raise_amount');
+  ractive.on('raise', function(event) {
+    var raise_amount = this.get('raise_amount');
     send({'action' : 'raise', 'raise_amount' : raise_amount});
   });
 
   ractive.on('all_in', event => send({'action' : 'all_in'}));
 
-  ractive.on('auto_action', event => {
+  ractive.on('auto_action', function(event) {
     var new_action = event.node.value;
-    var current_action = ractive.get('auto_action');
+    var current_action = this.get('auto_action');
     if (current_action == new_action) {
-      ractive.set('auto_action', '')
+      this.set('auto_action', '')
     } else {
-      ractive.set('auto_action', new_action);
+      this.set('auto_action', new_action);
     }
     if (new_action == 'call') {
-      var amount_needed = ractive.get('amount_needed_to_call');
-      ractive.set('auto_call_amount', amount_needed);
+      var amount_needed = this.get('amount_needed_to_call');
+      this.set('auto_call_amount', amount_needed);
     }
   });
 
-  ractive.on('change_name', event =>
+  ractive.on('change_name', function(event)
              {
-               new_name = ractive.get('new_name');
+               new_name = this.get('new_name');
                document.cookie = "name=" + encodeURIComponent(new_name);
                send({'action' : 'change_name', 'name': new_name});
              });
 
-  window.addEventListener("keydown", event => {
+  window.addEventListener("keydown", function(event) {
     if (event.key == '0') {
-      ractive.fire('all_in');
+      this.fire('all_in');
     }
     if (event.key == '1') {
-      ractive.fire('fold');
+      this.fire('fold');
     }
     if (event.key == '2') {
-      ractive.fire('call_check');
+      this.fire('call_check');
     }
     if (event.key == '3') {
-      ractive.fire('show_raise_menu');
+      this.fire('show_raise_menu');
     }
     if (event.key == '+' || event.key == '=') {
-      ractive.fire('raise_increase');
+      this.fire('raise_increase');
     }
     if (event.key == '-' || event.key == '_') {
-      ractive.fire('raise_decrease');
+      this.fire('raise_decrease');
     }
     if (event.key == 'Escape') {
-      ractive.fire('hide_raise_menu');
-      ractive.set('auto_action', null);
+      this.fire('hide_raise_menu');
+      this.set('auto_action', null);
     }
     if (event.key == 'Enter') {
-      ractive.fire('raise');
+      this.fire('raise');
     }
     if (event.key == '4') {
-      if (ractive.get('auto_action') == 'check_fold') {
-        ractive.set('auto_action', '');
+      if (this.get('auto_action') == 'check_fold') {
+        this.set('auto_action', '');
       } else {
-        ractive.set('auto_action', 'check_fold');
+        this.set('auto_action', 'check_fold');
       }
     }
     if (event.key == '5') {
-      if (ractive.get('auto_action') == 'call') {
-        ractive.set('auto_action', '');
+      if (this.get('auto_action') == 'call') {
+        this.set('auto_action', '');
       } else {
-        ractive.set('auto_action', 'call');
+        this.set('auto_action', 'call');
       }
     }
     if (event.key == '6') {
-      if (ractive.get('auto_action') == 'call_any') {
-        ractive.set('auto_action', '');
+      if (this.get('auto_action') == 'call_any') {
+        this.set('auto_action', '');
       } else {
-        ractive.set('auto_action', 'call_any');
+        this.set('auto_action', 'call_any');
       }
     }
     
