@@ -48,7 +48,9 @@ def find_bug():
     seats = game.data['seats']
     for seat in seats:
         if seat['money'] < 0:
-            return river
+            return game
+
+    return None
 
 def find_bug2():
     game = Game(0, 10, lambda: deepcopy(two_person_tie_deck))
@@ -65,6 +67,8 @@ def find_bug2():
     if not (game.data['seats'][0]['money'] == game.data['seats'][1]['money'] == 20):
         return game
 
+    return None
+
 def find_bug3():
     game = Game(0, 10, lambda: deepcopy(two_person_tie_deck2))
     game.try_join(0, 'mark', 0, 90)
@@ -72,24 +76,36 @@ def find_bug3():
     game.auto_advance()
     game.try_all_in(1)
     game.try_all_in(0)
-    return game
 
-if __name__ == "__main__":
-    bug = None
-    for _ in range(1000):
-        bug = find_bug2()
-        if bug:
-            print("found bug")
-            break
-        else:
-            print("no bug found")
+    while game.data['game_state'] != 'wait_for_players':
+        game.auto_advance()
 
-def display():
-    for seat in bug.data['seats']:
+    if not (game.data['seats'][0]['money'] == 90 and  game.data['seats'][1]['money'] == 20):
+        return game
+
+    return None
+
+
+def display(game):
+    for seat in game.data['seats']:
         if seat['state'] != 'empty':
             p.pprint(seat)
-    for card in bug.data['community_cards']:
+    for card in game.data['community_cards']:
         p.pprint(card)
         
+
+
+if __name__ == "__main__":
+    bugs = [find_bug(), find_bug2(), find_bug3()]
+
+    for i, bug in enumerate(bugs):
+        if bug:
+            print("Found bug", i)
+            display(bug)
+
+    if not any(bugs):
+        print("No bugs")
+
+    
 
 
