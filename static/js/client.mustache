@@ -11,6 +11,8 @@
 {{#(type == 'flush')}} flush {{/straight}}
 {{/partial}}
 
+{{#error}}<button class="pure-button" on-click="@.set('error', '')">x</button> Error:{{/error}}{{ error }}
+{{#warning}}<button class="pure-button" on-click="@.set('warning', '')">x</button>Warning:{{/warning}}{{ warning }}
 {{^game}}
 Loading
 {{/game}}
@@ -61,37 +63,19 @@ Current Name <b>{{name}}</b> <br/>
 	  <div class="actions">
 	    <span>
 	      {{#can_i_bet_later}}
-	        <!-- Auto action 
-	        check check-fold call-any
-	        fold call money, call any
-	        -->
-	        {{#call_check == 'check'}}
-	        <!-- Remark: here a check's value is "call" because a check is a call of 0 -->
-
-	        [4] <button class="pure-button {{# auto_action == 'check_fold'}}button-selected{{/button_on}}" on-click="auto_action" value="check_fold">check-fold</button><br/>
-	        [5] <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">check</button><br/>
+	        <!-- Auto actions -->
+	        [4] <button class="pure-button {{# auto_action == 'check_fold'}}button-selected{{/button_on}}" on-click="auto_action" value="check_fold">
+                {{#call_check == 'call'}} fold {{else}} check-fold {{/call_check}}</button><br/>
+	        [5] <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">{{ call_check }} {{#call_check == 'call'}}{{ amount_needed_to_call }}{{/call_check}}</button><br/>
 	        [6] <button class="pure-button {{# auto_action == 'call_any'}}button-selected{{/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
-	        {{/check}}
-
-	        {{#call_check == 'call'}}
-	        <button class="pure-button {{# auto_action == 'fold'}}button-selected{{/button_on}}" on-click="auto_action" value="fold">fold</button><br/>
-	        <button class="pure-button {{# auto_action == 'call'}}button-selected{{/button_on}}" on-click="auto_action" value="call">call {{amount_needed_to_call}}</button><br/>
-	        <button class="pure-button {{# auto_action == 'call_any'}}button-selected{{/button_on}}" on-click="auto_action" value="call_any">call any</button><br/>
-	        {{/call}}
 	      {{/can_i_bet_later}}
-
-	      <!-- Action 
-	      fold
-	      check
-	      call (all-in)
-	      raise-to (all-in)
-	      -->
 
 	      {{#is_my_turn}}
 	        {{^raise_menu}}
                   [0] <button class="pure-button pure-button-primary" on-click="all_in">all in</button><br/>
 	          {{#call_check=='call'}}[1] <button class="pure-button pure-button-primary" on-click="fold">fold</button><br/>{{/display_fold}}
 	          {{#can_call}}
+                    <!-- Remark: here a check's value is "call" because a check is a call of 0 -->
 	             [2] <button class="pure-button pure-button-primary" on-click="call_check">{{call_check}} {{#amount_needed_to_call>0}}{{amount_needed_to_call}}{{/amt}}</button><br/>
 	          {{/can_call}}
 	          {{#can_raise}}

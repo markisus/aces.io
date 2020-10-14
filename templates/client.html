@@ -7,28 +7,23 @@
 </head>
 
 <body>
-  <button class="pure-button" onclick="navigator.clipboard.writeText(window.location.href);">📋 Copy Game Address</button>
+  <button class="pure-button" onclick="navigator.clipboard.writeText(window.location.href);">📋 Copy Game Address</button> {{ preferred_name }}
   <div id="content" class="content"></div>
 
   <script>
     var images_dir = "{{ static_url("images/") }}";
 
     var ractive = undefined;
-    fetch("{{static_url("js/client.mustache")}}")
-    .then(response => response.text())
-    .then(text => {
-        ractive = initialize_ractive(text, images_dir);
-    });
-    
+    var send = undefined;
     var receive = function(msg) {
         var msg = JSON.parse(msg);
-        console.log(msg)
+        console.log(msg);
 
         if (msg['warning']) {
-            alert('warning: ' + msg['warning']);
+            ractive.set('warning', msg['warning']);
         }
         if (msg['error']) {
-            alert('error ' + msg['error'])
+            ractive.set('error', msg['error']);
         }
 
         var action = msg['action'];
@@ -39,12 +34,12 @@
         }
     }
 
-    var send = game_connect("{{gameid}}", "{{preferred_name}}", receive);
-
-    setInterval(function() {
-        console.log("Pinging")
-        send({'action': 'ping'});
-    }, 40000)
+    fetch("{{static_url("js/client.mustache")}}")
+    .then(response => response.text())
+    .then(text => {
+        ractive = initialize_ractive(text, images_dir);
+        send = game_connect("{{gameid}}", "{{preferred_name}}", receive);
+    });
   </script>
 
 </body>
