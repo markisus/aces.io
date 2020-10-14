@@ -1,5 +1,6 @@
 import copy
 from handranker import cards
+import handranker
 from pokerengine import Game
 from copy import deepcopy
 from pprint import PrettyPrinter as PP
@@ -94,7 +95,6 @@ def display(game):
         p.pprint(card)
         
 
-
 if __name__ == "__main__":
     bugs = [find_bug(), find_bug2(), find_bug3()]
 
@@ -105,6 +105,11 @@ if __name__ == "__main__":
 
     if not any(bugs):
         print("No bugs")
+
+    straight = handranker.find_straight([
+        '8.hearts', '7.diamonds', '6.hearts', '5.hearts', '5.diamonds', '4.hearts', '4.hearts'])
+    if len(straight['hand']) != 5:
+        print("handranker bug", straight)
 
     
 

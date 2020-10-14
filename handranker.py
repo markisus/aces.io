@@ -72,8 +72,19 @@ def find_straight(hand):
             high = '5'
         else:
             high = high_rank(straight)
-        final = [card for card in hand if get_rank(card) in straight]
-        return {'hand': final, 'type':'straight','high_rank': high}
+        final = []
+
+        last_added_rank = None
+        for card in hand:
+            card_rank = get_rank(card)
+            if last_added_rank and card_rank == last_added_rank:
+                # avoid making a "straight" with more than 5 cards
+                # and duplicated ranks
+                continue
+            if card_rank in straight:
+                final.append(card)
+                last_added_rank = card_rank
+        return {'hand': final, 'type': 'straight', 'high_rank': high}
 
 def find_super_flush(hand):
     for suit in suits:
