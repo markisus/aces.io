@@ -27,26 +27,25 @@ def find_bug():
     game.try_join(0, 'mark', 0, 20)
     game.try_join(1, 'terry', 1, 30)
     game.try_join(2, 'joe', 2, 40)
-    game.try_start_next_phase()
+    game.auto_advance()
 
     game.try_all_in(1)
     game.try_all_in(2)
     game.try_all_in(0)
 
-    assert game._game['active_user_position'] == None, "everyone is all in"
+    assert game.data['active_user_position'] == None, "everyone is all in"
 
-    game.try_start_next_phase() #preflop -> flop
-    game.try_start_next_phase() #flop -> turn
-    game.try_start_next_phase() #turn -> river
+    game.auto_advance() #preflop -> flop
+    game.auto_advance() #flop -> turn
+    game.auto_advance() #turn -> river
 
     river = copy.deepcopy(game)
 
-    game.try_start_next_phase()
-    game.try_start_next_phase()
-    game.try_start_next_phase()
-    game.try_start_next_phase()
+    for i in range(4):
+        if game.can_auto_advance():
+            game.auto_advance()
 
-    seats = game._game['seats']
+    seats = game.data['seats']
     for seat in seats:
         if seat['money'] < 0:
             return river
@@ -55,22 +54,22 @@ def find_bug2():
     game = Game(0, 10, lambda: deepcopy(two_person_tie_deck))
     game.try_join(0, 'mark', 0, 20)
     game.try_join(1, 'terry', 1, 20)
-    game.try_start_next_phase()
+    game.auto_advance()
 
     game.try_all_in(1)
     game.try_all_in(0)
 
-    while game._game['game_state'] != 'wait_for_players':
-        game.try_start_next_phase()
+    while game.data['game_state'] != 'wait_for_players':
+        game.auto_advance()
 
-    if not (game._game['seats'][0]['money'] == game._game['seats'][1]['money'] == 20):
+    if not (game.data['seats'][0]['money'] == game.data['seats'][1]['money'] == 20):
         return game
 
 def find_bug3():
     game = Game(0, 10, lambda: deepcopy(two_person_tie_deck2))
     game.try_join(0, 'mark', 0, 90)
     game.try_join(1, 'jeff', 1, 20)
-    game.try_start_next_phase()
+    game.auto_advance()
     game.try_all_in(1)
     game.try_all_in(0)
     return game
@@ -80,16 +79,16 @@ if __name__ == "__main__":
     for _ in range(1000):
         bug = find_bug2()
         if bug:
-            print "found bug"
+            print("found bug")
             break
         else:
-            print "no bug found"
+            print("no bug found")
 
 def display():
-    for seat in bug._game['seats']:
+    for seat in bug.data['seats']:
         if seat['state'] != 'empty':
             p.pprint(seat)
-    for card in bug._game['community_cards']:
+    for card in bug.data['community_cards']:
         p.pprint(card)
         
 
