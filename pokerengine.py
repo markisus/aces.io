@@ -86,7 +86,8 @@ class Game:
             'win_screen': None,
             'win_queue': [],
             'transitioning': False,
-            'move_timer_start': 0,
+            'next_move_due': 0,
+            'move_time': 15,
             'history': deque()
         }
 
@@ -516,7 +517,7 @@ class Game:
     def _update_active_user_position(self, new_position):
         self.data['active_user_position'] = new_position
         if new_position is not None:
-            self.data['move_timer_start'] = time.time()
+            self.data['next_move_due'] = time.time() + self.data['move_time']
 
     def _end_turn(self, seat):
         seat['had_turn'] = True

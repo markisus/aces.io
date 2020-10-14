@@ -229,6 +229,19 @@ var initialize_ractive = function(template, images_dir) {
     }
   });
 
+  ractive.observe('game.next_move_due', function(current, old, path) {
+    if (!ractive.get('is_any_user_active')) {
+      return;
+    }
+    var move_due = ractive.get('game.next_move_due');
+    var curr_time = ractive.get('timestamp');
+    var move_time_left = move_due - curr_time
+
+    ractive.set('move_time_left', move_time_left);
+    ractive.animate('move_time_left', 0, { duration: move_time_left * 1000 }); 
+    console.log("Move timer updated to", move_time_left);
+  });
+
   // Reset auto action
   ractive.observe('amount_needed_to_call', function(current, old) {
     var auto_action = ractive.get('auto_action');

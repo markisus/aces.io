@@ -28,9 +28,11 @@
 
         var action = msg['action'];
         if (action == "synchronize_game" && ractive) {
-            ractive.set('game', msg.game);
-            ractive.set('userid',  msg.userid);
-            ractive.set('name', msg.name);
+        ractive.set({game: msg.game,
+                     userid: msg.userid,
+                     name: msg.name,
+                     timestamp: msg.timestamp
+        });
         }
     }
 

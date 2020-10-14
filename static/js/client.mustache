@@ -22,6 +22,7 @@ Current Name <b>{{name}}</b> <br/>
 
 {{#game}}
   <div>
+    {{#is_any_user_active}}Move Timer: {{move_time_left.toFixed(2)}}{{/is_any_active}}
       <div class="circle-container">
 	<div class="el table">
 	  {{#pot}}

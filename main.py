@@ -132,6 +132,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             'game': self.game.make_facade_for_user(self.userid), 
             'userid': self.userid,
             'name': self.name,
+            'timestamp': time.time()
         }
 
     def force_client_synchronize(self):
@@ -161,13 +162,10 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 def try_handle_move_timeout(curr_time, game):
-    move_time = 5
     active_user_position = game.data['active_user_position']
     if active_user_position is not None:
-        move_time_elapsed = curr_time - game.data['move_timer_start']
-        if move_time_elapsed > move_time:
+        if curr_time > game.data['next_move_due']:
             active_userid = game.data['seats'][active_user_position]['userid']
-            print("User", active_userid, "ran out of time")
             return game.try_fold(active_userid)
     return False
 
