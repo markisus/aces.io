@@ -189,6 +189,11 @@ class Game:
     def try_replace(self, userid, name, seat_number):
         if seat_number < 0 or seat_number >= len(self.data['seats']):
             return False
+
+        if userid in self.get_seated_userids():
+            # user already seated
+            return False
+        
         seat = self.data['seats'][seat_number]
         if seat['disconnected']:
             #can only replace a disconnected user

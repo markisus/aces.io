@@ -158,8 +158,6 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
             del listeners[self.gameid]
         elif result:
             self.force_all_clients_synchronize()
-            self.try_auto_advance()
-
 
 def try_handle_move_timeout(curr_time, game):
     active_user_position = game.data['active_user_position']

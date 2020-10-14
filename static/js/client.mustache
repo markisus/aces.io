@@ -119,7 +119,7 @@ Current Name <b>{{name}}</b> <br/>
 	    {{/round_bet}}
 
             <!-- replace disconnected user -->
-            {{#disconnected}}<button class="join_button pure-button pure-button-primary" on-click="replace">Steal Seat</button>{{/disconnected}}
+            {{#disconnected}}{{^my_seat}}<button class="join_button pure-button pure-button-primary" on-click="replace">Steal Seat</button>{{/my_seat}}{{/disconnected}}
             
 	  <!-- Join/Buy in menu -->
 	  {{#(state == 'empty' && !my_seat)}}
