@@ -166,7 +166,7 @@ Current Name <b>{{name}}</b> <br/>
       {{/text}}
 
       {{#(category == 'win_info')}}
-      {{name}}
+      {{name}} {{#if(hole_cards)}}revaled {{#hole_cards}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/hole_cards}} and {{/if}}
       won {{winnings}} {{#best_hand}}with {{>best_hand_description}} {{#hand}}<img src="{{get_card_url(.)}}" class="card-tiny"/>{{/hand}} {{/best_hand}}
       {{/win_info}}
 
