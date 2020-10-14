@@ -1,8 +1,9 @@
-import copy
-import random
-import handranker
-from handranker import cards, suits, ranks
 from collections import deque
+from handranker import cards, suits, ranks
+import copy
+import handranker
+import random
+import time
 
 ready = 'ready'
 forcing_big_blind = 'forcing_big_blind'
@@ -65,6 +66,7 @@ def make_shuffled_deck():
 class Game:
     def __init__(self, gameid, room_size, make_deck=make_shuffled_deck):
         self._make_shuffled_deck = make_deck
+        self._deck = make_deck()
         self.data = {
             'gameid': gameid,
             'seats': [],
@@ -79,12 +81,12 @@ class Game:
             'small_blind_position': 0,
             'big_blind_position': 0,
             'pot': 0,
-            'deck': [],
             'community_cards': [],
             'game_state': wait_for_players,
             'win_screen': None,
             'win_queue': [],
             'transitioning': False,
+            'move_timer_start': 0,
             'history': deque()
         }
 
@@ -135,9 +137,6 @@ class Game:
     def is_game_over(self):
         return self.data['game_state'] in [last_man_standing, reveal]
 
-    def get_id(self):
-        return self.data['gameid']
-
     def _seat_user(self, seat_number, userid, name, money):
         game = self.data
         seat = game['seats'][seat_number]
@@ -162,7 +161,6 @@ class Game:
                 if not should_reveal:
                     num_hole_cards = len(seat.get('hole_cards', []))
                     seat['hole_cards'] = num_hole_cards*['unknown']
-        del facade['deck']
         return facade
 
     def _find_seat_by_userid(self, userid):
@@ -230,9 +228,8 @@ class Game:
     def _extract_userids(seats):
         return list(map(lambda seat: seat['userid'], seats))
 
-
     def _deal_card(self):
-        deck = self.data['deck']
+        deck = self._deck
         card = deck[-1]
         deck.pop()
         return card
@@ -243,11 +240,6 @@ class Game:
             seat['state'] == ready and \
             (seat['round_bet'] < self._get_current_bet() or not seat['had_turn'])
         )
-
-    def _can_start(self):
-        game = self.data
-        return game['game_state'] == wait_for_players \
-            and len(self._get_prepared_seats()) >= 2
 
     def can_auto_advance(self):
         if self.data['active_user_position'] is None \
@@ -274,36 +266,34 @@ class Game:
             })
 
 
-    def _try_enter_last_man_standing(self):
-        still_standing_seats = self._get_still_standing_seats()
-        if len(still_standing_seats) == 1:
-            self._make_pot()
-            last_man = still_standing_seats[0]
-            self.data['win_screen'] = {'win_condition': 'last_man_standing'}
-            self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
-            self.data['game_state'] = last_man_standing
-            self.data['active_user_position'] = None
-            return True
-        return False
+    def _can_enter_last_man_standing(self):
+        return len(self._get_still_standing_seats()) == 1
+
+    def _enter_last_man_standing(self):
+        self._make_pot()
+        last_man = self._get_still_standing_seats()[0]
+        self.data['win_screen'] = {'win_condition': 'last_man_standing'}
+        self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
+        self.data['game_state'] = last_man_standing
+        self.data['active_user_position'] = None
 
     def _set_utg(self):
         # Set under the gun (UTG)
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
         if len(utg_potentials) == 1:
-            # This can happen when everyone is all-in except one caller
-            # Then in the next round the caller would play himself only
-            # So do a check to avoid this
-            self.data['active_user_position'] = None
+            # This can happen when, in the last round,
+            # everyone went all-in except one caller
+            # Then in this round the caller would play himself only
+            # So do a check to avoid this and then auto advance to showdown
+            self._update_active_user_position(None)
         else:
             dealer_position = self.data['dealer_position']
-            self.data['active_user_position'] = next_greatest(
-                dealer_position, utg_potentials
-            )
+            self._update_active_user_position(
+                next_greatest(dealer_position, utg_potentials))
 
     def _can_enter_pre_flop(self):
         return self.data['game_state'] == wait_for_players \
             and len(self._get_prepared_seats()) >= 2
-
 
     def _enter_pre_flop(self):
         if not self._can_enter_pre_flop():
@@ -312,7 +302,7 @@ class Game:
         self.data['game_state'] = pre_flop
 
         self.data['win_screen'] = None
-        self.data['deck'] = self._make_shuffled_deck()
+        self._deck = self._make_shuffled_deck()
 
         # Ready more players
         ready_seats = self._get_ready_seats()
@@ -366,17 +356,11 @@ class Game:
                 seat['hole_cards'].append(card)
 
         # set utg to next after the big blind
+        # do not use _set_utg function since pre-flop has different utg logic
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
-        if len(utg_potentials) == 1:
-            # This can happen when everyone is all-in except one caller
-            # Then in the next round the caller would play himself only
-            # So do a check to avoid this
-            self.data['active_user_position'] = None
-        else:
-            big_blind_position = self.data['big_blind_position']
-            self.data['active_user_position'] = next_greatest(
-                big_blind_position, utg_potentials
-            )
+        big_blind_position = self.data['big_blind_position']
+        self._update_active_user_position(
+            next_greatest(big_blind_position, utg_potentials))
 
     def _enter_flop(self):
         self.data['game_state'] = flop
@@ -412,18 +396,20 @@ class Game:
                 self._reset_data()
             return True
 
+        current_state = self.data['game_state']
+
         if self._can_enter_pre_flop():
             self._enter_pre_flop()
-        elif not self._try_enter_last_man_standing():
-            current_state = self.data['game_state']
-            if current_state == pre_flop:
-                self._enter_flop()
-            elif current_state == flop:
-                self._enter_turn()
-            elif current_state == turn:
-                self._enter_river()
-            elif current_state == river:
-                self._enter_showdown()
+        elif self._can_enter_last_man_standing():
+            self._enter_last_man_standing()
+        elif current_state == pre_flop:
+            self._enter_flop()
+        elif current_state == flop:
+            self._enter_turn()
+        elif current_state == turn:
+            self._enter_river()
+        elif current_state == river:
+            self._enter_showdown()
 
         self._append_phase_transition_to_history()
 
@@ -472,7 +458,6 @@ class Game:
 
     def _award_next_winner(self):
         win_info = self.data['win_queue'].pop(0)
-        print("Awarding winner", win_info)
         winnings = win_info['winnings']
         self.data['win_screen'].update(win_info)
         self.data['pot'] -= winnings
@@ -528,23 +513,25 @@ class Game:
             self.data['pot'] += seat['round_bet']
             seat['round_bet'] = 0
 
+    def _update_active_user_position(self, new_position):
+        self.data['active_user_position'] = new_position
+        if new_position is not None:
+            self.data['move_timer_start'] = time.time()
+
     def _end_turn(self, seat):
         seat['had_turn'] = True
         self._append_last_move_to_history(seat)
 
         # set next user if we are not in last man standing state
-        if not self._try_enter_last_man_standing():
+        if not self._can_enter_last_man_standing():
             active_user_position = self.data['active_user_position']
             next_active_positions = self._extract_seat_numbers(self._get_can_bet_seats())
             next_active_position = next_greatest(
                 active_user_position, next_active_positions
             )
-            self.data['active_user_position'] = next_active_position
-            if next_active_position:
-                active_user = self.data['seats'][next_active_position]
-                if active_user['disconnected']:
-                    self.try_fold(active_user['userid'])
-                    
+            self._update_active_user_position(next_active_position)
+        else:
+            self._update_active_user_position(None)
 
     def _prepare_next_round(self):
         self._make_pot()
@@ -556,20 +543,6 @@ class Game:
             if seat['last_move'] not in ['fold', 'all in']:
                 seat['last_move'] = None
         self.data['min_raise'] = self.data['big_blind']
-
-        # Set under the gun (UTG)
-        utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
-        if len(utg_potentials) == 1:
-            # This can happen when everyone is all-in except one caller
-            # Then in the next round the caller would play himself only
-            # So do a check to avoid this
-            self.data['active_user_position'] = None
-        else:
-            big_blind_position = self.data['big_blind_position']
-            self.data['active_user_position'] = next_greatest(
-                big_blind_position, utg_potentials
-            )
-
 
     def _reset_data(self):
         for seat in self.data['seats']:

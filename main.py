@@ -1,12 +1,13 @@
-import os
-import json
-import uuid
 from collections import defaultdict
-import urllib.parse
+import json
+import os
+import pokerengine
+import time
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
-import pokerengine
+import urllib.parse
+import uuid
 
 room_size = 10
 games = {}
@@ -39,6 +40,36 @@ def make_name():
     global name_counter
     name_counter += 1
     return "anon{}".format(name_counter)
+
+def activate_transition(game):
+    game.data['transitioning'] = False
+
+    game.auto_advance()
+    for l in listeners[game.data['gameid']]:
+        l.force_client_synchronize()
+
+    # since transitions may be stacked
+    # e.g. if everyone is all in
+    # attemp the schedule another transition
+    try_enter_transition(game)
+
+# returns true if transition was scheduled or if already transitoning
+def try_enter_transition(game):
+    if game.can_auto_advance() and not game.data['transitioning']:
+        game.data['transitioning'] = True
+
+        delay = 0.5
+        game_state = game.data['game_state']
+        if game_state == 'last_man_standing':
+            delay = 1.0
+        if game_state == 'reveal':
+            delay = 2.0
+
+        ioloop = tornado.ioloop.IOLoop.instance()
+        def callback():
+            activate_transition(game)
+        ioloop.call_later(delay, callback)
+    return game.data['transitioning']
 
 class GameSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, gameid):
@@ -95,34 +126,6 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if success:
             self.force_all_clients_synchronize()
 
-        #Try transition
-        self.try_start_next_phase()
-
-    def try_start_next_phase(self):
-        if self.game.can_auto_advance() and not self.game.data['transitioning']:
-            self.game.data['transitioning'] = True
-            
-            delay = 0.5
-            game_state = self.game.data['game_state']
-            if game_state == 'last_man_standing':
-                delay = 1.0
-            if game_state == 'reveal':
-                delay = 2.0
-
-            self.send_all_listeners({'action': 'phase_transition_timer', 'delay': delay})
-
-            ioloop = tornado.ioloop.IOLoop.instance()
-            def callback():
-                transitioned = self.game.auto_advance()
-                if transitioned:
-                    self.game.data['transitioning'] = False
-                    self.force_all_clients_synchronize()
-                    # The game might still be stuck
-                    # Like last action of showdown will auto advance to waiting for players
-                    self.try_start_next_phase()
-
-            ioloop.call_later(delay, callback)
-
     def make_synchronize_message(self):
         return {
             'action': 'synchronize_game', 
@@ -147,18 +150,37 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if self.game:
             result = self.game.try_disconnect(self.userid)
         listeners[self.gameid].remove(self)
-        if result:
-            self.force_all_clients_synchronize()
-            self.try_start_next_phase()
 
-def cleanup():
-    dead_gameids = []
-    for gameid, listeners in listeners.items():
-        if len(listeners) == 0:
-            dead_gameids.append(gameid)
-    for dead_gameid in dead_gameids:
-        del games[dead_gameid]
-        del listeners[dead_gameid]
+        if len(listeners[self.gameid]) == 0:
+            # no more connections to this game
+            del games[self.gameid]
+            del listeners[self.gameid]
+        elif result:
+            self.force_all_clients_synchronize()
+            self.try_auto_advance()
+
+
+def try_handle_move_timeout(curr_time, game):
+    move_time = 5
+    active_user_position = game.data['active_user_position']
+    if active_user_position is not None:
+        move_time_elapsed = curr_time - game.data['move_timer_start']
+        if move_time_elapsed > move_time:
+            active_userid = game.data['seats'][active_user_position]['userid']
+            print("User", active_userid, "ran out of time")
+            return game.try_fold(active_userid)
+    return False
+
+def tick_games():
+    curr_time = time.time()
+
+    for gameid, game in games.items():
+        if try_enter_transition(game):
+            continue
+        
+        if try_handle_move_timeout(curr_time, game):
+            for l in listeners[gameid]:
+                l.force_client_synchronize()
 
 application = tornado.web.Application(
     [
@@ -181,5 +203,5 @@ if __name__ == "__main__":
     parser.add_argument('--port', dest='P', type=int, help='port number to listen on', default=8888)
     args = parser.parse_args()
     application.listen(args.P)
-    tornado.ioloop.PeriodicCallback(cleanup, 10000)
+    tornado.ioloop.PeriodicCallback(tick_games, 500).start()
     tornado.ioloop.IOLoop.current().start()

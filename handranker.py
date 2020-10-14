@@ -73,7 +73,7 @@ def find_straight(hand):
         else:
             high = high_rank(straight)
         final = [card for card in hand if get_rank(card) in straight]
-        return {'hand':final, 'type':'straight','high_rank': high}
+        return {'hand': final, 'type':'straight','high_rank': high}
 
 def find_super_flush(hand):
     for suit in suits:
