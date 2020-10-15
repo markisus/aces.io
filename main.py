@@ -8,6 +8,7 @@ import tornado.web
 import tornado.websocket
 import urllib.parse
 import uuid
+import human_id
 
 room_size = 10
 games = {}
@@ -24,22 +25,25 @@ class StatsHandler(tornado.web.RequestHandler):
         
 class NewGameHandler(tornado.web.RequestHandler):
     def post(self):
-        game_id = str(uuid.uuid4())
+        game_id = human_id.generate_id()
         games[game_id] = pokerengine.Game(game_id, room_size)
         self.redirect("game/%s" % game_id)
 
 class GameHandler(tornado.web.RequestHandler):
-    def get(self, gameid):
+    def get(self, gameid, skin_id = None):
         preferred_name = self.get_cookie('name', '')
-        self.render("client.html",
+        
+        if skin_id is not None:
+            template_path = "skins/{}.html".format(skin_id)
+        else:
+            template_path = "client.html"
+
+        self.render(template_path,
                     gameid = gameid,
                     preferred_name = preferred_name)
 
-name_counter = 0
 def make_name():
-    global name_counter
-    name_counter += 1
-    return "anon{}".format(name_counter)
+    return human_id.generate_id()
 
 def activate_transition(game):
     game.data['transitioning'] = False
@@ -184,6 +188,7 @@ application = tornado.web.Application(
         (r"/stats", StatsHandler),
         (r"/new_game", NewGameHandler),
         (r"/game/([a-zA-Z0-9\-]+)", GameHandler),
+        (r"/game/([a-zA-Z0-9\-]+)/([a-zA-Z0-9\-]+)", GameHandler), # with skin parameter
         (r"/gamesocket/([a-zA-Z0-9\-]+)", GameSocketHandler),
     ],
     cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
