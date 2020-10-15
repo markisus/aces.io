@@ -1,7 +1,15 @@
-This is the modern skin
-<br/><br/>
+<head>
+<link rel="stylesheet" href="{{static_url("css/tachyons.min.css")}}">
+<script src='{{static_url("js/ractive.js")}}'></script>
+<script src='{{static_url("js/client.js")}}'></script>
+</head>
 
-Game: {{ gameid }} 
-<br/>
+<div id="content"></div>
 
-Preferred name: {{ preferred_name }}
+<script>
+    var images_dir = "{{ static_url("images/") }}";
+    var template_path = "{{static_url("mustaches/modern.mustache")}}";
+    init("{{ gameid }}", "{{ preferred_name }}", template_path, images_dir);
+</script>
+
+
