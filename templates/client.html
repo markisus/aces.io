@@ -12,36 +12,8 @@
 
   <script>
     var images_dir = "{{ static_url("images/") }}";
-
-    var ractive = undefined;
-    var send = undefined;
-    var receive = function(msg) {
-        var msg = JSON.parse(msg);
-        console.log(msg);
-
-        if (msg['warning']) {
-            ractive.set('warning', msg['warning']);
-        }
-        if (msg['error']) {
-            ractive.set('error', msg['error']);
-        }
-
-        var action = msg['action'];
-        if (action == "synchronize_game" && ractive) {
-        ractive.set({game: msg.game,
-                     userid: msg.userid,
-                     name: msg.name,
-                     timestamp: msg.timestamp
-        });
-        }
-    }
-
-    fetch("{{static_url("js/client.mustache")}}")
-    .then(response => response.text())
-    .then(text => {
-        ractive = initialize_ractive(text, images_dir);
-        send = game_connect("{{gameid}}", "{{preferred_name}}", receive);
-    });
+    var template_path = "{{static_url("js/client.mustache")}}";
+    init("{{ gameid }}", "{{ preferred_name }}", template_path, images_dir);
   </script>
 
 </body>
