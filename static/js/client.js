@@ -22,6 +22,12 @@ var init = function(gameid, preferred_name, template, images_dir) {
         name : msg.name,
         timestamp : msg.timestamp
       });
+      if (!ractive.get('new_name') && msg.name) {
+        // init new name functionality:
+        // the new name field needs a placeholder
+        // the placeholder should be the current name
+        ractive.set('new_name', msg.name);
+      }
     }
   };
 
@@ -47,6 +53,52 @@ var init = function(gameid, preferred_name, template, images_dir) {
       template : template,
 
       data : {
+        is_unknown_card : function(card) {
+          return (card == 'unknown');
+        },
+        
+        get_card_color : function(card) {
+          if (!card) {
+            card = 'unknown';
+          }
+          if (card == "unknown") {
+            return "purple";
+          }
+          var card_array = card.split('.');          
+          var suit = card_array[1];
+          if (suit == "daimonds" || suit == "hearts") {
+            return "red";
+          }
+          return "black";
+        },
+
+        short_rank : function(rank) {
+          if (rank == "king") return "K";
+          if (rank == "ace") return "A";
+          if (rank == "queen") return "Q";
+          if (rank == "jack") return "J";
+          return rank;
+        },
+        
+        get_card_unicode : function(card) {
+          if (!card)
+            card = 'unknown';
+          if (card == 'unknown')
+            return "🂠"; //
+
+          var card_array = card.split('.');
+          var rank = card_array[0];
+          var suit = card_array[1];
+
+          var suit_code;
+          if (suit == 'spades') suit_code = "♠";
+          if (suit == 'hearts') suit_code = "♥";
+          if (suit == 'diamonds') suit_code = "♦";
+          if (suit == 'clubs') suit_code = "♣";
+
+          return suit_code + this.get('short_rank').apply(this, [rank]);
+        },
+        
         get_card_url : function(card) {
           if (!card)
             card = 'unknown';
@@ -84,9 +136,34 @@ var init = function(gameid, preferred_name, template, images_dir) {
           // `this` must be piped
           return !this.get('is_win_card').apply(this, [ card ]);
         },
+
+        is_me : function(userid) {
+          return this.get('userid') == userid;
+        },
+
+        new_name : '',
       },
 
       computed : {
+        seat_idxs : function() {
+          var seats = this.get('game.seats');
+          return Array.from(seats, (x, i) => i);
+        },
+        reverse_seat_idxs : function() {
+          var seats = this.get('game.seats');
+          return Array.from(seats, (x, i) => seats.length - i - 1);
+        },
+        pretty_game_state : function() {
+          var game_state = this.get('game.game_state');
+          if (game_state == 'wait_for_players') return 'waiting for players';
+          if (game_state == 'pre_flop') return 'pre-flop';
+          if (game_state == 'flop') return 'flop';
+          if (game_state == 'turn') return 'turn';
+          if (game_state == 'river') return 'river';
+          if (game_state == 'last_man_standing') return 'last man standing';
+          if (game_state == 'reveal') return 'showdown';
+          return game_state;
+        },
         is_any_user_active : function() {
           var active_user_position = this.get('game.active_user_position');
           return (active_user_position != undefined);
@@ -333,6 +410,8 @@ var init = function(gameid, preferred_name, template, images_dir) {
       document.cookie = "name=" + encodeURIComponent(new_name);
       send({'action' : 'change_name', 'name' : new_name});
     });
+
+    ractive.on('leave_seat', event => send({'action' : 'disconnect'}));
 
     window.addEventListener("keydown", function(event) {
       if (event.key == '0') {

@@ -1,1 +1,217 @@
-{{ game }}
+{{#partial best_hand_description}}
+{{#(type == 'pair')}} pair {{short_rank(rank)}}s {{/pair}}
+{{#(type == 'quads')}} quad {{short_rank(rank)}}s with {{short_rank(get_card_rank(kicker))}} kicker  {{/quads}}
+{{#(type == 'three of a kind')}} trip {{short_rank(rank)}}s  {{/trips}}
+{{#(type == 'two pair')}} two pair {{short_rank(first_rank)}} & {{short_rank(second_rank)}}s  {{/two_pair}}
+{{#(type == 'full house')}} full house {{short_rank(triple_rank)}} & {{short_rank(double_rank)}}s  {{/full_house}}
+{{#(type == 'high card')}} {{short_rank(high_rank)}} high {{/high_card}}
+{{#(type == 'royal flush')}} royal flush {{/royal_flush}}
+{{#(type == 'straight flush')}} strt. flush {{short_rank(high_rank)}} high {{/straight_flush}}
+{{#(type == 'straight')}} straight {{short_rank(high_rank)}} high {{/straight}}
+{{#(type == 'flush')}} flush {{/straight}}
+{{/partial}}
+
+{{#partial card_display}}
+<span class="color: {{ get_card_color(.) }}">{{ get_card_unicode(.) }}</span>&nbsp;
+{{/partial}}
+
+{{#partial seating_menu}}
+{{#(state == 'empty' && !my_seat)}}
+{{#(show_buyin_menu != seat_number)}}
+<button on-click="show_buyin_menu">Sit at Seat {{seat_number}}</button>
+{{/step1}}
+{{#(show_buyin_menu == seat_number)}}
+<button on-click="buy_in">buy in for {{buy_in}}</button>
+<button on-click="buy_in_decrease">-</button>
+<button on-click="buy_in_increase">+</button>
+{{/step2}}
+{{/not_already_seated}}
+{{/partial}}
+
+{{#partial player_box_color_css}}
+ba
+
+{{#userid && win_screen.winner.userid == userid}}
+b--yellow bg-yellow{{else}}
+{{#(state == "all_in")}}
+b--washed-red bg-washed-red{{else}}
+{{#(seat_number == active_user_position)}}
+b--dark-green bg-lightest-blue{{else}}
+b--lightest-blue bg-lightest-blue{{/user_active}}
+{{/all_in}}
+{{/winner}}
+
+{{#(state == "folded")}}o-50{{/fold}}
+{{/partial}}
+
+{{#partial player_box}}
+  <div class="fl cf mb1 relative w-100 bw1 {{>player_box_color_css}}">
+
+  <!-- timer -->
+  {{#(seat_number == active_user_position)}}
+  <div class="absolute h3 top-0 bg-dark-green" style="width:{{(move_time_left/move_time).toFixed(3)*100}}%; height:10%"></div>
+  {{/move_timer}}
+
+  <!-- top info line -->
+  <div class="pa1 h1 fl w-100">
+    <!-- if user won, use info line to show winner info -->
+    {{#if(userid && userid == win_screen.winner.userid)}}
+    <div class="w-100 tc f6">
+      <span class="green">+${{win_screen.winner.winnings}}</span>
+      <span class="ttu">
+        {{#win_screen.winner.best_hand}}{{>best_hand_description}}{{/best_hand}}
+      </span>
+    </div>
+    {{else}}
+    <div class="w-100 tr">
+      {{#(dealer_position == seat_number)}}<span class="gray f7">(D)</span>{{/dealer_position}}
+      {{#(big_blind_position == seat_number)}}<span class="gray f7">(B)</span>{{/dealer_position}}    
+      {{#(small_blind_position == seat_number)}}<span class="gray f7">(S)</span>{{/dealer_position}}
+      <span class="ttu f6">{{last_move}}</span>
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="pa1 fl w-100 h2 tc">
+    {{#if(userid)}}
+    <span class="green">${{money.toFixed(0)}}</span>&nbsp;
+    <span class="athelas f4 {{#is_me(userid)}}b i{{/is_me}} {{#if(disconnected)}}strike{{/if}}">{{name}}&nbsp;</span>
+    {{else}}
+    {{>seating_menu}}&nbsp;
+    {{/if}}
+  </div>
+
+  <div class="fl h2 w-100">
+    <div class="pa1 fl f4 w-100 tr">
+      {{#hole_cards}}
+        <span class="{{#is_unknown_card(.)}}f3{{else}}f4{{/is_unknown}}">{{>card_display}}</span>
+      {{/hole_cards}}
+      &nbsp;&nbsp;
+      {{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}
+    </div>
+  </div>
+  </div>
+{{/partial}}
+
+
+<div class="f1 h3 pa2 ttu tc tracked">aces.io</div>
+
+{{#game}}
+<div class="center-ns w-100">
+  <!-- user bar -->
+  <div class="fl w-100 pa1 tr bg-lightest-blue">
+      {{#if(my_seat && (!my_seat.disconnected))}}
+      <span class="green f3">${{ my_seat.money.toFixed(0) }}</span>&emsp;
+      {{/if}}
+      <input class="athelas f5 ma1 bg-white ba bw0" value='{{new_name}}'/>
+      <button class="f5" on-click="change_name">change name</button>
+      {{#if(my_seat && (!my_seat.disconnected))}}<button class="f5" on-click="leave_seat">leave seat</button>{{/if}}
+  </div>
+
+  <!-- game state -->    
+  <div class="f2 w-100 tc ttu tracked">{{ pretty_game_state }}</div>
+  <!-- player columns -->
+  <div class="fl w-third pa0 pr2 pl2">
+    <div class="fl w-50 pr1">
+    {{#reverse_seat_idxs}}
+      {{#if(. >= seats.length/2)}}
+      {{#seats[.]}}{{>player_box}}{{/seat}}
+      {{/if}}
+    {{/seat_idxs}}
+    </div>      
+    <div class="fl w-50">
+    {{#seat_idxs}}
+      {{#if(. < seats.length/2)}}
+      {{#seats[.]}}{{>player_box}}{{/seat}}
+      {{/if}}
+    {{/reverse_seat_idxs}}
+    </div>
+  </div>
+
+  <!-- this user area -->
+  <div class="fl w-third pa0">
+    <div class="fl tc w-100"><span class="ttu tracked f4">Pot</span> <span class="f3">⛃${{pot.toFixed(0)}}</span></div>
+    <div class="fl w-100 h3">
+    {{#community_cards}}<div class="relative f1 tc fl w-20 pa0">{{>card_display}}</div>{{/community_cards}}
+    </div>
+    
+    {{#my_seat}}
+    {{#if(!disconnected)}}
+    <div class="relative mb1 fl h5 w-100 pa0 pt3 pb3
+      bw2 {{>player_box_color_css}}">
+      {{#(seat_number == active_user_position)}}
+      <div class="absolute top-0 pa0 ma0 bg-dark-green" style="width:{{(move_time_left/move_time).toFixed(3)*100}}%; height:5%"></div>
+      {{/move_timer}}
+  
+      <div class="fl w-100 pa0 f3 h1 tc">
+        {{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}
+      </div>    
+      <div class="fl w-100 pa1 f1 h3 tc">
+      {{#hole_cards}}{{>card_display}}{{/hole_cards}}
+      </div>
+  
+      <div class="fl w-100 pa3 f3 tc">
+        {{#can_i_bet_later}}
+        <span class="ttu tracked">pre-move</span> <br/>
+        {{^(amount_needed_to_call == 0)}}
+        <button
+          class="{{#auto_action == 'check_fold'}}bg-dark-gray{{/selected}}"
+          on-click="auto_action" value="check_fold">check fold</button>
+        {{/can_check}}
+        <button
+          class="{{#auto_action == 'call'}}bg-dark-gray{{/selected}}"
+          on-click="auto_action" value="call">{{#if(amount_needed_to_call)}}call{{else}}check{{/if}}</button>
+        <button
+          class="{{#auto_action == 'call_any'}}bg-dark-gray{{/selected}}"
+          on-click="auto_action" value="call_any">call any</button>
+        {{/can_i_bet_later}}
+        
+        {{#is_my_turn}}
+        {{^raise_menu}}
+        <button on-click="all_in">all in</button>
+        <button on-click="fold">fold</button>
+        <button on-click="call_check">{{call_check}}</button>
+        {{#can_raise}}<button on-click="show_raise_menu">raise</button>{{/can_raise}}
+        {{/no_raise_menu}}
+  
+        {{#raise_menu}}
+        <button on-click="hide_raise_menu">cancel</button>        
+        <button on-click="raise">ok</button>        
+        <button on-click="raise_decrease">-</button>
+        <button on-click="raise_increase">+</button> <br/>
+        ⛃${{ round_bet }} 🡒 ⛃${{ (current_bet + raise_amount).toFixed(0) }}
+        {{/raise_menu}}
+        {{/is_my_turn}}
+      </div>
+    </div>
+    {{/if}}
+    {{/my_seat}}
+  </div>
+
+  <!-- history -->
+  <div class="cf fl w-third pl2">
+    {{#history}}
+      {{#(category == 'phase_transition')}}
+      <b>{{phase}}</b>
+      {{^(phase == 'showdown')}}
+      {{#community_cards : idx}}
+      {{#(idx == 0)}}<br/>{{/idx}}{{>card_display}}
+      {{/community_cards}}
+      {{/not_showdown}}
+      {{/phase_transition}}
+      
+      {{#(category == 'text')}}
+      {{message}}
+      {{/text}}
+  
+      {{#(category == 'win_info')}}
+      {{name}} {{#if(hole_cards)}} revaled {{#hole_cards}}{{>card_display}}{{/hole_cards}} and {{/if}} won {{winnings}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} {{/best_hand}}
+      {{/win_info}}
+      <br/>
+    {{/history}}
+  </div>
+</div>
+
+
+
+{{/game}}

@@ -63,6 +63,16 @@ def make_shuffled_deck():
     random.shuffle(_cards)
     return _cards
 
+# package together winner data for the win screen
+def make_winner(winner_seat, winnings, best_hand = None):
+    return {
+        'userid': winner_seat['userid'],
+        'name': winner_seat['name'],
+        'hole_cards': winner_seat['hole_cards'],
+        'best_hand': best_hand,
+        'winnings': winnings,
+    }
+
 class Game:
     def __init__(self, gameid, room_size, make_deck=make_shuffled_deck):
         self._make_shuffled_deck = make_deck
@@ -87,7 +97,7 @@ class Game:
             'win_queue': [],
             'transitioning': False,
             'next_move_due': 0,
-            'move_time': 15,
+            'move_time': 18,
             'history': deque()
         }
 
@@ -176,14 +186,17 @@ class Game:
     # otherwise, just clear the seat
     def try_disconnect(self, userid):
         user_seat = self._find_seat_by_userid(userid)
+        print("Found seat as", user_seat)
         if user_seat:
             seat_number = user_seat['seat_number']
             if self.data['game_state'] == wait_for_players:
                 user_seat.update(self._make_empty_seat(user_seat['seat_number']))
-                return True
-            folded = self.try_fold(user_seat['userid'])
-            self.data['seats'][seat_number]['disconnected'] = True
+            else:
+                folded = self.try_fold(user_seat['userid'])
+                self.data['seats'][seat_number]['disconnected'] = True
+            print("Disconnecting")
             return True
+        print("Not disconnecting")
         return False
 
     def try_replace(self, userid, name, seat_number):
@@ -279,7 +292,7 @@ class Game:
         self._make_pot()
         last_man = self._get_still_standing_seats()[0]
         self.data['win_screen'] = {'win_condition': 'last_man_standing'}
-        self.data['win_queue'].append({'winner': last_man, 'winnings': self.data['pot']})
+        self.data['win_queue'].append({'winner': make_winner(last_man, winnings = self.data['pot'])})
         self.data['game_state'] = last_man_standing
         self.data['active_user_position'] = None
 
@@ -421,6 +434,8 @@ class Game:
 
         return True
 
+
+    
     def _enter_showdown(self):
         self.data['game_state'] = reveal
         best_hands = dict()
@@ -439,23 +454,27 @@ class Game:
                     best_hands[s1['userid']], best_hands[s2['userid']]))
         )
         winner_infos = []
+
         while standing_seats:
             winner = standing_seats[-1]
-            winners = []
+            winners = [] # those who tied this winner
             while standing_seats and handranker.compare_hand_dicts(
                     best_hands[standing_seats[-1]['userid']], 
                     best_hands[winner['userid']]) == 0:
                 winners.append(standing_seats.pop())
+
             num_winners = len(winners)
             for winner in winners:
-                winner['best_hand'] = best_hands[winner['userid']]
+                # winner['best_hand'] = best_hands[winner['userid']]
                 winnings = 0
                 winner_bet = winner['total_bet']
                 for seat in self.data['seats']:
+                    # collect winnings contributed by this seat
+                    # taking into account if there were ties
                     gains = min(seat['total_bet'], winner_bet)/num_winners
                     seat['total_bet'] -= gains
                     winnings += gains
-                winner_infos.append({'winner': winner, 'winnings': winnings})
+                winner_infos.append({'winner': make_winner(winner, winnings, best_hands[winner['userid']])})
                 num_winners -= 1
             standing_seats = [seat for seat in standing_seats if seat['total_bet'] > 0]
 
@@ -464,7 +483,7 @@ class Game:
 
     def _award_next_winner(self):
         win_info = self.data['win_queue'].pop(0)
-        winnings = win_info['winnings']
+        winnings = win_info['winner']['winnings']
         self.data['win_screen'].update(win_info)
         self.data['pot'] -= winnings
         winner_seat = self._find_seat_by_userid(win_info['winner']['userid'])
@@ -472,8 +491,7 @@ class Game:
             winner_seat['money'] += winnings
 
         best_hand = win_info['winner'].get('best_hand', None)
-        # hole_cards = winner_seat['hole_cards'] if best_hand else None
-        hole_cards = winner_seat['hole_cards']
+        hole_cards = winner_seat['hole_cards'] if best_hand else None
 
         # simplified version for history
         self._append_data_to_history(category = 'win_info', data = {
