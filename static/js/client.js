@@ -143,7 +143,6 @@ var init = function(gameid, preferred_name, template, images_dir) {
 
 
         is_current_winner : function(userid) {
-          console.log("Calling is current winner");
           return (userid && (userid == this.get('game.win_screen.winner.userid')));
         },        
 
@@ -428,13 +427,11 @@ var init = function(gameid, preferred_name, template, images_dir) {
           send({'action' : 'call'});
         }
         if (auto_action == 'call') {
-          console.log("Sending call or check due to auto action.");
           var auto_call_amount = this.get('auto_call_amount');
           if (auto_call_amount >= amount_needed)
             send({'action' : 'call'});
         }
         if (auto_action == 'check_fold') {
-          console.log("Sending check_fold due to auto action.");
           if (amount_needed == 0) {
             send({'action' : 'call'})
           } else {
@@ -457,7 +454,6 @@ var init = function(gameid, preferred_name, template, images_dir) {
 
                      this.set('move_time_left', move_time_left);
       this.animate('move_time_left', 0, {duration : move_time_left * 1000});
-      console.log("Move timer updated to", move_time_left);
     });
 
     // Reset auto action
@@ -583,4 +579,5 @@ var init = function(gameid, preferred_name, template, images_dir) {
       ractive = initialize_ractive(text, images_dir);
       game_connect(gameid, preferred_name);
     });
+
 };
