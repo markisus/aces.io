@@ -48,6 +48,11 @@ def make_name():
 def activate_transition(game):
     game.data['transitioning'] = False
 
+    if not game.can_auto_advance():
+        # https://en.wikipedia.org/wiki/Time-of-check_to_time-of-use
+        # prevent toctou conditions if users disconnect
+        return False
+
     game.auto_advance()
     for l in listeners[game.data['gameid']]:
         l.force_client_synchronize()
