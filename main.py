@@ -119,6 +119,9 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
         if action == 'all_in':
             success = self.game.try_all_in(self.userid)
 
+        if action == 'reveal':
+            success = self.game.try_reveal(self.userid)
+
         if action == 'change_name':
             self.name = data['name']
             success = self.game.try_change_name(self.userid, self.name)

@@ -273,6 +273,24 @@ var init = function(gameid, preferred_name, template, images_dir) {
           return this.get('game.min_buy_in') / 2;
         },
 
+        can_reveal : function() {
+          var revealers = this.get('game.revealers');
+          if (!revealers) return false;
+
+          var game_state = this.get('game.game_state');
+          if (!(game_state == 'reveal' ||
+                game_state == 'last_man_standing')) {
+            return false;
+          }
+
+          var my_seat = this.get('my_seat');
+          if (!my_seat) return false;
+          if (!my_seat.hole_cards.length) return false;
+
+
+          var userid = this.get('userid');
+          return !revealers.includes(userid);
+        }
       }
     });
 
@@ -419,6 +437,8 @@ var init = function(gameid, preferred_name, template, images_dir) {
     });
 
     ractive.on('leave_seat', event => send({'action' : 'disconnect'}));
+
+    ractive.on('reveal', event => send({'action' : 'reveal'}));
 
     window.addEventListener("keydown", function(event) {
       if (event.key == '0') {

@@ -59,10 +59,11 @@ def make_shuffled_deck():
     return _cards
 
 # package together winner data for the win screen
-def make_winner(winner_seat, winnings, best_hand = None):
+def make_winner(winner_seat, winnings, hole_cards = None, best_hand = None):
     return {
         'userid': winner_seat['userid'],
         'name': winner_seat['name'],
+        'hole_cards': hole_cards,
         'best_hand': best_hand,
         'winnings': winnings,
     }
@@ -466,7 +467,10 @@ class Game:
                     gains = min(seat['total_bet'], winner_bet)/num_winners
                     seat['total_bet'] -= gains
                     winnings += gains
-                winner_infos.append(make_winner(winner, winnings, best_hands[winner['userid']]))
+                winner_infos.append(make_winner(winner,
+                                                winnings,
+                                                winner['hole_cards'],
+                                                best_hands[winner['userid']]))
                 num_winners -= 1
             standing_seats = [seat for seat in standing_seats if seat['total_bet'] > 0]
 
@@ -478,12 +482,7 @@ class Game:
 
         # aggressor must reveal
         if self.data['aggressor'] is not None:
-            aggressor_seat = self._find_seat_by_userid(win_info['userid'])
-            # usually the aggressor would still be standing
-            # but logically he can fold after raising
-            # eg. if he raises preflop, everyone calls, then he folds on the flop
-            if is_state_still_standing(aggressor_seat['state']):
-                self.data['revealers'].append(self.data['aggressor'])
+            self.data['revealers'].append(self.data['aggressor'])
 
     def _award_next_winner(self):
         win_info = self.data['win_queue'].pop(0)
@@ -667,13 +666,29 @@ class Game:
             seat['state'] = folded
             seat['had_turn'] = True
             seat['last_move'] = 'fold'
+            if self.data['aggressor'] == userid:
+                self.data['aggressor'] = None
             self._end_turn(seat)
             return True
 
     def try_reveal(self, userid):
+        seat = self._find_seat_by_userid(userid)
+        if seat is None:
+            return False
+
+        if not seat['hole_cards']:
+            return False
+        
         if userid not in self.data['revealers'] and \
            self.is_game_over():
             self.data['revealers'].append(userid)
+            self._append_data_to_history(
+                category = "reveal",
+                data = {
+                    "userid": userid,
+                    "name": seat['name'],
+                    "hole_cards": seat['hole_cards']
+                })
             return True
         return False
     
