@@ -9,6 +9,8 @@ import tornado.websocket
 import urllib.parse
 import uuid
 import human_id
+import random
+import string
 
 room_size = 10
 games = {}
@@ -36,14 +38,14 @@ class GameHandler(tornado.web.RequestHandler):
         if skin_id is not None:
             template_path = "skins/{}.html".format(skin_id)
         else:
-            template_path = "client.html"
+            template_path = "skins/modern.html"
 
         self.render(template_path,
                     gameid = gameid,
                     preferred_name = preferred_name)
 
 def make_name():
-    return human_id.generate_id()
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
 
 def activate_transition(game):
     game.data['transitioning'] = False
