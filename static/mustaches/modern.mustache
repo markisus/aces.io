@@ -178,7 +178,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       <div class="fl w-100 pa3 f3 tc">
         {{#can_i_bet_later}}
         <span class="ttu tracked">pre-move</span> <br/>
-        {{^(amount_needed_to_call == 0)}}
+        {{^amount_needed_to_call}}
         <button
           class="{{#auto_action == 'check_fold'}}bg-silver{{/selected}}"
           on-click="auto_action" value="check_fold">check fold</button>
