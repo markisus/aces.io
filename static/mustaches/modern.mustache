@@ -73,23 +73,30 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
   <!--- info area -->
   <div class="fl pa0 h3 w-100">
     {{#if(userid)}}
-    {{#if is_current_winner(userid) && game_state == 'reveal'}}
-    <!-- showdown winner info -->
+    {{#if revealers.includes(userid) }}
+    <!-- revealer info -->
     <div class="fl pa1 pt2 w-100 tc">
       <div class="fl w-100">
         <div class="ttu f7">
-          {{#win_screen.winner.best_hand}}{{>hand_type}}{{/hand_type}}
+          {{#best_hand}}{{>hand_type}}{{/hand_type}}
         </div>
+        {{#if best_hand.hand.length > 2}}
         <div class="f5 ">
-          {{#win_screen.winner.best_hand.hand}}{{>card_display}}{{/winning_hand}}
+          {{#best_hand.hand}}{{>card_display}}{{/hand}}
         </div>
+        {{/if}}
       </div>
       <div class="fl w-100">
-        <span class="green f5">+${{win_screen.winner.winnings.toFixed(0)}}</span>&nbsp;
-        <span class="f4 nowrap {{#revealers.includes(userid)}}underline{{/revealing}}">
-        {{#hole_cards}}
-        {{>card_display}}
-        {{/hole_cards}}
+        {{#if is_current_winner(userid)}}
+        <span class="green f5">
+          +${{win_screen.winner.winnings.toFixed(0)}}
+        </span>&nbsp;
+        {{/if}}
+
+        <span class="f4 nowrap underline">
+          {{#hole_cards}}
+          {{>card_display}}
+          {{/hole_cards}}
         </span>
       </div>
     </div>
@@ -101,7 +108,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{/if}}
       <span class="nowrap">
       {{#hole_cards}}
-        <span class="f3 {{#revealers.includes(userid)}}underline{{/revealing}}">{{>card_display}}</span>
+        <span class="f3">{{>card_display}}</span>
       {{/hole_cards}}
       </span>
       <span class="f3 nowrap">&nbsp;{{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}</span>
@@ -167,12 +174,24 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{/move_timer}}
 
       <span class="{{#(state == "folded") && can_reveal}}o-50{{/fold}}">
-      <div class="fl w-100 pa0 f3 h1 tc">
-        {{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}
-      </div>    
-      <div class="fl w-100 pa1 f1 h3 tc {{#revealers.includes(userid)}}underline{{/revealed}}">
-      {{#hole_cards}}{{>card_display}}{{/hole_cards}}
-      </div>
+        <div class="fl w-100 pa0 f3 h1 tc">
+          {{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}
+        </div>    
+        <div class="fl w-100 pa1 f1 h3 tc {{#revealers.includes(userid)}}underline{{/revealed}}">
+        {{#hole_cards}}{{>card_display}}{{/hole_cards}}
+        </div>
+  
+        <div class="fl w-100 h2 tc">
+          <span class="ttu f5 tracked">{{#best_hand}}best hand{{/best_hand}}</span>
+          <span class="ttu f6 tracked">
+            <br/>
+            {{#best_hand}}{{>hand_type}}{{/best_hand}}
+          </span>
+          {{#if best_hand.hand.length > 2}}
+          <span>&nbsp;&nbsp;</span>
+          <span class="f5">{{#best_hand.hand}}{{>card_display}}{{/best_hand.hand}}</span>
+          {{/if}}
+        </div>
       </span>
 
       <div class="fl w-100 pa3 f3 tc">
@@ -234,11 +253,12 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{/text}}
   
       {{#(category == 'win_info')}}
-      {{name}} {{#if(hole_cards)}}revaled <u>{{#hole_cards}}{{>card_display}}{{/hole_cards}}</u> and {{/if}} won ${{winnings}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} {{/best_hand}}
+      {{name}} {{#if(hole_cards)}}revaled <u>{{#hole_cards}}{{>card_display}}{{/hole_cards}}</u> and {{/if}} won ${{winnings}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} ({{>hand_type}}){{/best_hand}}
       {{/win_info}}
 
       {{#category == 'reveal'}}
-      {{name}} revealed hole cards <u>{{#hole_cards}}{{>card_display}}{{/hand}}</u>
+      {{name}} revealed <u>{{#hole_cards}}{{>card_display}}{{/hand}}</u>
+          {{#if best_hand.hand.length > 2}}making {{#best_hand.hand}}{{>card_display}}{{/hand}}{{/if}} ({{#best_hand }}{{>hand_type}}{{/best_hand}})
       {{/reveal}}
       <br/>
     {{/history}}

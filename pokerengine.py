@@ -115,6 +115,7 @@ class Game:
         seat['total_bet'] = 0
         seat['state'] = empty
         seat['hole_cards'] = []
+        seat['best_hand'] = None
         seat['had_turn'] = False
         seat['seat_number'] = seat_number
         seat['last_move'] = None
@@ -168,6 +169,7 @@ class Game:
                 if not should_reveal:
                     num_hole_cards = len(seat.get('hole_cards', []))
                     seat['hole_cards'] = num_hole_cards*['unknown']
+                    seat['best_hand'] = None
         return facade
 
     def _find_seat_by_userid(self, userid):
@@ -306,6 +308,13 @@ class Game:
             self._update_active_user_position(
                 next_greatest(dealer_position, utg_potentials))
 
+    def _update_best_hands(self):
+        for seat in self.data['seats']:
+            if not seat['hole_cards']:
+                continue
+            hand7 = seat['hole_cards'] + self.data['community_cards']
+            seat['best_hand'] = handranker.search(hand7)
+
     def _can_enter_pre_flop(self):
         return self.data['game_state'] == wait_for_players \
             and len(self._get_prepared_seats()) >= 2
@@ -377,6 +386,8 @@ class Game:
         self._update_active_user_position(
             next_greatest(big_blind_position, utg_potentials))
 
+        self._update_best_hands()
+
     def _enter_flop(self):
         self.data['game_state'] = flop
         self._prepare_next_round()
@@ -384,6 +395,7 @@ class Game:
             card = self._deal_card()
             self.data['community_cards'].append(card)
         self._set_utg()
+        self._update_best_hands()
 
     def _enter_turn(self):
         self.data['game_state'] = turn
@@ -391,6 +403,7 @@ class Game:
         card = self._deal_card()
         self.data['community_cards'].append(card)
         self._set_utg()
+        self._update_best_hands()
 
     def _enter_river(self):
         self.data['game_state'] = river
@@ -398,6 +411,7 @@ class Game:
         card = self._deal_card()
         self.data['community_cards'].append(card)
         self._set_utg()
+        self._update_best_hands()
 
     def auto_advance(self):
         # cannot advance if currently waiting for user move
@@ -431,30 +445,28 @@ class Game:
     
     def _enter_showdown(self):
         self.data['game_state'] = reveal
-        best_hands = dict()
 
         standing_seats = self._get_still_standing_seats()
-        for seat in standing_seats:
-            hand7 = seat['hole_cards'] + self.data['community_cards']
-            best_hands[seat['userid']] = handranker.search(hand7)
 
-        # stable sort / lexical sort (hand score, total bet)
+        # stable sort / lexical sort (hand score, reverse total bet)
+        # the last entry is the best hand
+        # if there are ties, then the one who bet least is last
         standing_seats.sort(
             key = lambda s: -s['total_bet']
         )
         standing_seats.sort(
             key = cmp_to_key(
                 lambda s1, s2: handranker.compare_hand_dicts(
-                    best_hands[s1['userid']], best_hands[s2['userid']]))
+                    s1['best_hand'], s2['best_hand']))
         )
         winner_infos = []
 
         while standing_seats:
             winner = standing_seats[-1]
-            winners = [] # those who tied this winner
+            winners = [] # those who tied this winner, but put more in the pot
             while standing_seats and handranker.compare_hand_dicts(
-                    best_hands[standing_seats[-1]['userid']], 
-                    best_hands[winner['userid']]) == 0:
+                    standing_seats[-1]['best_hand'], 
+                    winner['best_hand']) == 0:
                 winners.append(standing_seats.pop())
 
             num_winners = len(winners)
@@ -470,7 +482,7 @@ class Game:
                 winner_infos.append(make_winner(winner,
                                                 winnings,
                                                 winner['hole_cards'],
-                                                best_hands[winner['userid']]))
+                                                winner['best_hand']))
                 num_winners -= 1
             standing_seats = [seat for seat in standing_seats if seat['total_bet'] > 0]
 
@@ -566,12 +578,13 @@ class Game:
 
     def _reset_data(self):
         for seat in self.data['seats']:
-            empty = self._make_empty_seat(seat['seat_number'])
-            if seat['disconnected']:
-                seat.update(empty)
             if seat['state'] == empty:
-                continue
+                continue            
+            empty_seat = self._make_empty_seat(seat['seat_number'])
+            if seat['disconnected']:
+                seat.update(empty_seat)
             seat['hole_cards'] = []
+            seat['best_hand'] = None
             seat['total_bet'] = 0
             seat['round_bet'] = 0
             seat['had_turn'] = False
@@ -581,8 +594,7 @@ class Game:
             if seat['money'] == 0 and seat['userid']:
                 self._append_msg_to_history("{} busted".format(seat['name']))
                 # For now when someone busts, they just get kicked
-                # seat['state'] = busted
-                seat.update(empty)
+                seat.update(empty_seat)
         self.data['community_cards'] = []
         self.data['min_raise'] = 0
         self.data['pot'] = 0
@@ -683,11 +695,12 @@ class Game:
            self.is_game_over():
             self.data['revealers'].append(userid)
             self._append_data_to_history(
-                category = "reveal",
+                category = 'reveal',
                 data = {
-                    "userid": userid,
-                    "name": seat['name'],
-                    "hole_cards": seat['hole_cards']
+                    'userid': userid,
+                    'name': seat['name'],
+                    'hole_cards': seat['hole_cards'],
+                    'best_hand': seat['best_hand']
                 })
             return True
         return False
