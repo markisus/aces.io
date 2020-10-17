@@ -1,4 +1,4 @@
-from collections import deque
+from collections import deque, defaultdict
 from handranker import cards, suits, ranks
 import copy
 import handranker
@@ -95,7 +95,8 @@ class Game:
             'transitioning': False,
             'next_move_due': 0,
             'move_time': 18,
-            'history': deque()
+            'history': deque(),
+            'ledger': defaultdict(dict)
         }
 
         for seat_number in range(room_size):
@@ -130,6 +131,12 @@ class Game:
                 userids.add(userid)
         return userids
 
+    def _update_ledger(self, userid, name, delta_payout):
+        ledger_entry = self.data['ledger'][userid]
+        ledger_entry['name'] = name
+        current_payout = ledger_entry.get('payout', 0)
+        ledger_entry['payout'] = delta_payout + current_payout
+
     def try_join(self, userid, name, seat_number, buy_in):
         game = self.data
         if seat_number < 0 or seat_number >= len(game['seats']):
@@ -141,6 +148,7 @@ class Game:
         if buy_in > game['max_buy_in']:
             return False
         self._seat_user(seat_number, userid, name, buy_in)
+        self._update_ledger(userid, name, -buy_in)
         return True
     
     def is_game_over(self):
@@ -184,17 +192,15 @@ class Game:
     # otherwise, just clear the seat
     def try_disconnect(self, userid):
         user_seat = self._find_seat_by_userid(userid)
-        print("Found seat as", user_seat)
         if user_seat:
             seat_number = user_seat['seat_number']
             if self.data['game_state'] == wait_for_players:
+                self._update_ledger(userid, user_seat['name'], user_seat['money'])
                 user_seat.update(self._make_empty_seat(user_seat['seat_number']))
             else:
                 folded = self.try_fold(user_seat['userid'])
                 self.data['seats'][seat_number]['disconnected'] = True
-            print("Disconnecting")
             return True
-        print("Not disconnecting")
         return False
 
     def try_replace(self, userid, name, seat_number):
@@ -218,6 +224,7 @@ class Game:
         seat = self._find_seat_by_userid(userid)
         if seat:
             seat['name'] = name
+            self._update_ledger(userid, name, delta_payout = 0)
             return True
         return False
 
@@ -582,6 +589,7 @@ class Game:
                 continue            
             empty_seat = self._make_empty_seat(seat['seat_number'])
             if seat['disconnected']:
+                self._update_ledger(seat['userid'], seat['name'], seat['money'])
                 seat.update(empty_seat)
             seat['hole_cards'] = []
             seat['best_hand'] = None

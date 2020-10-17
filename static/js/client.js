@@ -31,6 +31,30 @@ var init = function(gameid, preferred_name, template, images_dir) {
     }
   };
 
+  function parse_ledger_csv(csv) {
+    var lines = csv.split('\n');
+    var data = {};
+    for (var i = 0; i < lines.length; ++i) {
+      var line = lines[i];
+      var name_comma_payout = line.split(',');
+      if (name_comma_payout.length != 2) {
+        continue;
+      }
+      var name = name_comma_payout[0].trim();
+      var payout = parseFloat(name_comma_payout[1].trim());
+      if (isNaN(payout)) {
+        continue;
+      }
+      if (name in data) {
+        data[name] += payout;
+      }
+      else {
+        data[name] = payout;
+      }
+    }
+    return data;
+  }
+
   function url(s) {
     var l = window.location;
     return ((l.protocol === "https:") ? "wss://" : "ws://") + l.hostname +
@@ -148,6 +172,8 @@ var init = function(gameid, preferred_name, template, images_dir) {
         },
 
         new_name : '',
+
+        previous_ledger_csv : '',
       },
 
       computed : {
@@ -290,6 +316,58 @@ var init = function(gameid, preferred_name, template, images_dir) {
 
           var userid = this.get('userid');
           return !revealers.includes(userid);
+        },
+
+        previous_ledger : function() {
+          // unlike the current ledger which is keyed by userid,
+          // the previous ledger is keyed by name
+          // userids are not meaningful across sessions
+          
+          var previous_ledger_csv = this.get('previous_ledger_csv');
+          return parse_ledger_csv(previous_ledger_csv);
+        },
+
+        previous_ledger_sum : function() {
+          var sum = 0;
+          var previous_ledger = this.get('previous_ledger');
+          for (var name in previous_ledger) {
+            sum += previous_ledger[name];
+          }
+          return sum;
+        },
+
+        previous_ledger_size : function() {
+          var sz = 0;
+          var previous_ledger = this.get('previous_ledger');
+          for (var name in previous_ledger) {
+            ++sz;
+          }
+          return sz;
+        },        
+
+        ledger_csv : function() {
+          var ledger = this.get('game.ledger');
+          // copy prev ledger so we can mutate it
+          var prev_ledger = Object.assign({}, this.get('previous_ledger'));;
+          // fuse current ledger into prev ledger
+          for (key in ledger) {
+            var name = ledger[key].name;
+            var payout = ledger[key].payout;
+            if (name in prev_ledger) {
+              prev_ledger[name] += payout;
+            }
+            else {
+              prev_ledger[name] = payout;
+            }
+          }
+
+          var csv = '';
+          for (name in prev_ledger) {
+            var payout = prev_ledger[name];
+            csv += (name + ',' + payout + '\n');
+          }
+
+          return csv;
         }
       }
     });
@@ -392,6 +470,11 @@ var init = function(gameid, preferred_name, template, images_dir) {
     ractive.observe('game.game_state',
                     function(current, old) { this.set('auto_action', ''); });
 
+    ractive.on('copy_ledger_csv', function(event) {
+      navigator.clipboard.writeText(this.get('ledger_csv'));
+     });
+                 
+        
     ractive.on('buy_in', function(event) {
       send({
         'action' : 'buy_in',

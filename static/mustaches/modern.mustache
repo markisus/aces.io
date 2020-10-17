@@ -236,8 +236,9 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
     {{/my_seat}}
   </div>
 
-  <!-- history -->
-  <div class="cf fl w-third-l w-100 pl2">
+  <!-- history & ledger -->
+  <div class="fl w-third-l w-100 pl2">
+    <div class="fl w-100-l w-50 mb3">
     {{#history}}
       {{#(category == 'phase_transition')}}
       <b>{{phase}}</b>
@@ -262,7 +263,24 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{/reveal}}
       <br/>
     {{/history}}
+    </div>
+    
+    <div class="fl w-100-l w-50 pl2">
+      Ledger <button on-click="copy_ledger_csv">📋 copy</button><br/>
+      <textarea rows=5>{{ledger_csv}}</textarea>
+
+      <br/>      <br/>
+      Paste Previous Ledger<br/>
+      <textarea rows=5 value="{{previous_ledger_csv}}"></textarea>
+      <br/>
+      {{#if previous_ledger_csv}}
+      <i>parsed {{previous_ledger_size}} names from previous ledger</i>
+      {{#if previous_ledger_sum != 0}}<br/><span class="red">warning, previous ledger nonzero sum: {{previous_ledger_sum}}</span>{{/if}}
+      {{/if}}
+    </div>    
   </div>
+
+
 </div>
 
 {{/game}}
