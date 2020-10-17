@@ -170,6 +170,24 @@ var init = function(gameid, preferred_name, template, images_dir) {
           return this.get('userid') == userid;
         },
 
+        money_fmt : function(money) {
+          if (this.get('game.denomination') == 'cents') {
+            if (money < 100) {
+              return money + "¢";
+            } else {
+              var dollars = Math.floor(money/100);
+              var cents = money - 100*dollars;
+              if (cents > 0) {
+                return "$" + dollars + "." + cents.toFixed(0);
+              }
+              return "$" + dollars;
+            }
+          }
+          else {
+            return "$" + money.toFixed(0);
+          }
+        },
+
         new_name : '',
 
         previous_ledger_csv : '',

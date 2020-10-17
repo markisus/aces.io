@@ -74,13 +74,14 @@ class Game:
         self._deck = make_deck()
         self.data = {
             'gameid': gameid,
+            'denomination': 'cents',
             'seats': [],
             'room_size': room_size,
             'min_raise': 0,
-            'min_buy_in': 20,
-            'max_buy_in': 100,
-            'small_blind': 1,
-            'big_blind': 2,
+            'min_buy_in': 1000,
+            'max_buy_in': 5000,
+            'small_blind': 5,
+            'big_blind': 10,
             'dealer_position': 0,
             'active_user_position': None,
             'small_blind_position': 0,

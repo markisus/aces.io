@@ -24,7 +24,7 @@
 <button on-click="show_buyin_menu">buy in</button>
 {{/step1}}
 {{#(show_buyin_menu == seat_number)}}
-<button on-click="buy_in">${{buy_in}}</button><br/>
+<button on-click="buy_in">{{money_fmt(buy_in)}}</button><br/>
 <button on-click="buy_in_decrease">-</button>
 <button on-click="buy_in_increase">+</button>
 {{/step2}}
@@ -47,8 +47,6 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 
 {{/partial}}
 
-
-
 {{#partial player_box}}
 <div class="fl mb1 relative w-100 bw1 {{>player_box_color_css}} {{#(state == "folded" && !revealers.includes(userid))}}o-50{{/fold}}">
 
@@ -64,7 +62,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{#(dealer_position == seat_number)}}<span class="gray f7">(D)</span>{{/dealer_position}}
       {{#(big_blind_position == seat_number)}}<span class="gray f7">(B)</span>{{/bb_position}}    
       {{#(small_blind_position == seat_number)}}<span class="gray f7">(S)</span>{{/sb_position}}
-      <span class="green f5">${{money.toFixed(0)}}</span>
+      <span class="green f5">{{money_fmt(money)}}</span>
       <span class="athelas f5 {{#is_me(userid)}}b i{{/is_me}} {{#if(disconnected)}}strike{{/if}}">{{name}}</span>
     </div>
     {{/if}}
@@ -89,7 +87,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       <div class="fl w-100">
         {{#if is_current_winner(userid)}}
         <span class="green f5">
-          +${{win_screen.winner.winnings.toFixed(0)}}
+          +{money_fmt({win_screen.winner.winnings)}}
         </span>&nbsp;
         {{/if}}
 
@@ -104,14 +102,14 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
     <!-- player betting info, non-showdown -->
     <div class="fl pa1 pt2 w-100 tc">
       {{#if is_current_winner(userid)}}
-      <span class="green f5">+${{win_screen.winner.winnings.toFixed(0)}}</span>&nbsp;
+      <span class="green f5">+{{money_fmt(win_screen.winner.winnings)}}</span>&nbsp;
       {{/if}}
       <span class="nowrap">
       {{#hole_cards}}
         <span class="f3">{{>card_display}}</span>
       {{/hole_cards}}
       </span>
-      <span class="f3 nowrap">&nbsp;{{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}</span>
+      <span class="f3 nowrap">&nbsp;{{#round_bet}}⛃{{ money_fmt(round_bet) }}{{/round_bet}}</span>
     </div>
     {{/if}}
     {{else}}
@@ -131,7 +129,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
   <!-- user bar -->
   <div class="fl w-100 pa1 tr bg-lightest-blue">
       {{#if(my_seat && (!my_seat.disconnected))}}
-      <span class="green f3">${{ my_seat.money.toFixed(0) }}</span>&emsp;
+      <span class="green f3">{{ money_fmt(my_seat.money) }}</span>&emsp;
       {{/if}}
       <input class="athelas f5 ma1 bg-white {{#if new_name == name}}bg-lightest-blue{{/if}}" value='{{new_name}}'/>
       <button class="f5 " on-click="change_name">change name</button>
@@ -160,7 +158,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 
   <!-- this user area -->
   <div class="fl w-third-l w-50 pa0">
-    <div class="fl tc w-100"><span class="ttu tracked f4">Pot</span> <span class="f3">⛃${{pot.toFixed(0)}}</span></div>
+    <div class="fl tc w-100"><span class="ttu tracked f4">Pot</span> <span class="f3">⛃{{money_fmt(pot)}}</span></div>
     <div class="fl w-100 h3">
     {{#community_cards}}<div class="relative f2 tc fl w-20 pa0">{{>card_display}}</div>{{/community_cards}}
     </div>
@@ -175,7 +173,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 
       <span class="{{#(state == "folded") && can_reveal}}o-50{{/fold}}">
         <div class="fl w-100 pa0 f3 h1 tc">
-          {{#round_bet}}⛃${{ round_bet.toFixed(0) }}{{/round_bet}}
+          {{#round_bet}}⛃{{ money_fmt(round_bet) }}{{/round_bet}}
         </div>    
         <div class="fl w-100 pa1 f1 h3 tc {{#revealers.includes(userid)}}underline{{/revealed}}">
         {{#hole_cards}}{{>card_display}}{{/hole_cards}}
@@ -223,7 +221,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
         <button on-click="raise">ok</button>        
         <button on-click="raise_decrease">-</button>
         <button on-click="raise_increase">+</button> <br/>
-        ⛃${{ round_bet }} 🡒 ⛃${{ (current_bet + raise_amount).toFixed(0) }}
+        ⛃{{ money_fmt(round_bet) }} 🡒 ⛃{{ money_fmt(current_bet + raise_amount) }}
         {{/raise_menu}}
         {{/is_my_turn}}
 
@@ -254,7 +252,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{/text}}
   
       {{#(category == 'win_info')}}
-      {{name}} {{#if(hole_cards)}}revaled <u>{{#hole_cards}}{{>card_display}}{{/hole_cards}}</u> and {{/if}} won ${{winnings}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} ({{>hand_type}}){{/best_hand}}
+      {{name}} {{#if(hole_cards)}}revaled <u>{{#hole_cards}}{{>card_display}}{{/hole_cards}}</u> and {{/if}} won {{money_fmt(winnings)}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} ({{>hand_type}}){{/best_hand}}
       {{/win_info}}
 
       {{#category == 'reveal'}}
@@ -266,12 +264,15 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
     </div>
     
     <div class="fl w-100-l w-50 pl2">
-      Ledger <button on-click="copy_ledger_csv">📋 copy</button><br/>
-      <textarea rows=5 value="{{ledger_csv}}"></textarea>
+      Ledger <button on-click="copy_ledger_csv">📋</button><br/>
+      <div class="pre w5 h4 ma2 courier">
+        {{ledger_csv}}
+      </div>
+
 
       <br/>      <br/>
       Paste Previous Ledger<br/>
-      <textarea rows=5 value="{{previous_ledger_csv}}"></textarea>
+      <textarea rows=5 class="courier" value="{{previous_ledger_csv}}"></textarea>
       <br/>
       {{#if previous_ledger_csv}}
       <i>parsed {{previous_ledger_size}} names from previous ledger</i>
