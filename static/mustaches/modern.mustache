@@ -237,43 +237,46 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
   </div>
 
   <!-- history & ledger -->
-  <div class="fl w-third-l w-100 pl2">
-    <div class="fl w-100-l w-50 mb3">
-    {{#history}}
-      {{#(category == 'phase_transition')}}
-      <b>{{phase}}</b>
-      {{^(phase == 'showdown')}}
-      {{#community_cards : idx}}
-      {{#(idx == 0)}}<br/>{{/idx}}{{>card_display}}
-      {{/community_cards}}
-      {{/not_showdown}}
-      {{/phase_transition}}
-      
-      {{#(category == 'text')}}
-      {{message}}
-      {{/text}}
-  
-      {{#(category == 'win_info')}}
-      {{name}} {{#if(hole_cards)}}revaled <u>{{#hole_cards}}{{>card_display}}{{/hole_cards}}</u> and {{/if}} won {{money_fmt(winnings)}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} ({{>hand_type}}){{/best_hand}}
-      {{/win_info}}
+  <div class="fl w-third-l w-100">
+    <div class="fl w-100-l w-50 mb1 pa3 pt0 ">
+      <span class="ttu tracked f4">Event Log</span><br/>
+      <div class="fl w-100 courier h4 bg-light-yellow overflow-y-scroll">
+        {{#history}}
+          {{#(category == 'phase_transition')}}
+          <b>{{phase}}</b>
+          {{^(phase == 'showdown')}}
+          {{#community_cards : idx}}
+          {{#(idx == 0)}}<br/>{{/idx}}{{>card_display}}
+          {{/community_cards}}
+          {{/not_showdown}}
+          {{/phase_transition}}
+          
+          {{#(category == 'text')}}
+          {{message}}
+          {{/text}}
+          
+          {{#(category == 'win_info')}}
+          {{name}} {{#if(hole_cards)}}revaled <u>{{#hole_cards}}{{>card_display}}{{/hole_cards}}</u> and {{/if}} won {{money_fmt(winnings)}} {{#best_hand}}with {{#hand}}{{>card_display}}{{/hand}} ({{>hand_type}}){{/best_hand}}
+          {{/win_info}}
 
-      {{#category == 'reveal'}}
-      {{name}} revealed <u>{{#hole_cards}}{{>card_display}}{{/hand}}</u>
-          {{#if best_hand.hand.length > 2}}making {{#best_hand.hand}}{{>card_display}}{{/hand}}{{/if}} ({{#best_hand }}{{>hand_type}}{{/best_hand}})
-      {{/reveal}}
-      <br/>
-    {{/history}}
+          {{#category == 'reveal'}}
+          {{name}} revealed <u>{{#hole_cards}}{{>card_display}}{{/hand}}</u>
+            {{#if best_hand.hand.length > 2}}making {{#best_hand.hand}}{{>card_display}}{{/hand}}{{/if}} ({{#best_hand }}{{>hand_type}}{{/best_hand}})
+        {{/reveal}}
+        <br/>
+        {{/history}}
+
+      </div>
     </div>
     
-    <div class="fl w-100-l w-50 pl2">
-      Ledger <button on-click="copy_ledger_csv">📋</button><br/>
-      <div class="pre w5 h4 ma2 courier">
+    <div class="fl w-100-l w-50 pa3">
+      <span class="ttu tracked f4">Ledger</span> <span class="f5">{{denomination}}</span> <button class="fr" on-click="copy_ledger_csv">📋</button><br/>
+      <div class="pre w5 h4 ma2 w-100 courier bg-moon-gray">
         {{ledger_csv}}
       </div>
-
-      <br/><br/>
-      Paste Previous Ledger ↓<br/>
-      <textarea rows=5 class="courier" value="{{previous_ledger_csv}}"></textarea>
+      <br/>
+      <span class="ttu tracked f4">Previous Ledger</span> <span class="f5 fr ">paste ↓</span><br/>
+      <textarea rows=10 class="courier w-100 bg-moon-gray bw0" value="{{previous_ledger_csv}}"></textarea>
       <br/>
       {{#if previous_ledger_csv}}
       <i>parsed {{previous_ledger_size}} names from previous ledger</i>
