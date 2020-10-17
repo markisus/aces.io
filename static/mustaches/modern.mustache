@@ -48,7 +48,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 {{/partial}}
 
 {{#partial player_box}}
-<div class="fl mb1 relative w-100 bw1 {{>player_box_color_css}} {{#(state == "folded" && !revealers.includes(userid))}}o-50{{/fold}}">
+<div class="fl mb1 relative w-100 bw1 pa0 {{>player_box_color_css}} {{#(state == "folded" && !revealers.includes(userid))}}o-50{{/fold}}">
 
   <!-- timer -->
   {{#(seat_number == active_user_position)}}
@@ -87,7 +87,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       <div class="fl w-100">
         {{#if is_current_winner(userid)}}
         <span class="green f5">
-          +{money_fmt({win_screen.winner.winnings)}}
+          +{{money_fmt(win_screen.winner.winnings)}}
         </span>&nbsp;
         {{/if}}
 
@@ -106,10 +106,12 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{/if}}
       <span class="nowrap">
       {{#hole_cards}}
-        <span class="f3">{{>card_display}}</span>
+        <span class="f4">{{>card_display}}</span>
       {{/hole_cards}}
       </span>
-      <span class="f3 nowrap">&nbsp;{{#round_bet}}⛃{{ money_fmt(round_bet) }}{{/round_bet}}</span>
+      <span class="f4 nowrap">&nbsp;{{#round_bet}}⛃{{ money_fmt(round_bet) }}{{/round_bet}}</span>
+        <br/>
+        <span class="f7 ttu">{{last_move}}</span>
     </div>
     {{/if}}
     {{else}}
