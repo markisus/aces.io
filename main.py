@@ -62,10 +62,10 @@ def try_enter_transition(game):
     if game.can_auto_advance() and not game.data['transitioning']:
         game.data['transitioning'] = True
 
-        delay = 1.0
+        delay = 2.0
         if game.data['win_screen'] and game.data['win_screen'].get('winner', None):
             # currently awarding winner, keep this screen for longer
-            delay = 3.0
+            delay = 8.0
 
         ioloop = tornado.ioloop.IOLoop.instance()
         def callback():
@@ -126,9 +126,7 @@ class GameSocketHandler(tornado.websocket.WebSocketHandler):
                 self.force_client_synchronize()
 
         if action == 'disconnect':
-            print("Got disconnect message")
             success = self.game.try_disconnect(self.userid)
-            print("Disconnected? ", success)
 
         if success:
             self.force_all_clients_synchronize()

@@ -117,6 +117,12 @@ var init = function(gameid, preferred_name, template, images_dir) {
           return card_array[0];
         },
 
+
+        is_current_winner : function(userid) {
+          console.log("Calling is current winner");
+          return (userid && (userid == this.get('game.win_screen.winner.userid')));
+        },        
+
         is_win_card : function(card) {
           if (this.get('game.win_screen.win_condition') != 'showdown')
             return false;
@@ -265,7 +271,8 @@ var init = function(gameid, preferred_name, template, images_dir) {
           if (!this.get('game'))
             return 0;
           return this.get('game.min_buy_in') / 2;
-        }
+        },
+
       }
     });
 

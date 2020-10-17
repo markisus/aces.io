@@ -20,13 +20,8 @@ river = 'river'
 reveal = 'reveal'
 last_man_standing = 'last_man_standing'
 
-STATE_TRANSITIONS = {
-    wait_for_players: pre_flop,
-    pre_flop: flop,
-    flop: turn,
-    turn: river,
-    river: reveal,
-}
+def is_state_still_standing(state):
+    return state in [ready, all_in]
 
 # python2 -> python3
 def cmp_to_key(mycmp):
@@ -68,7 +63,6 @@ def make_winner(winner_seat, winnings, best_hand = None):
     return {
         'userid': winner_seat['userid'],
         'name': winner_seat['name'],
-        'hole_cards': winner_seat['hole_cards'],
         'best_hand': best_hand,
         'winnings': winnings,
     }
@@ -95,6 +89,8 @@ class Game:
             'game_state': wait_for_players,
             'win_screen': None,
             'win_queue': [],
+            'aggressor': None, # in a showdown, the aggressor must show            
+            'revealers': [], # userids who reveal cards at showdown
             'transitioning': False,
             'next_move_due': 0,
             'move_time': 18,
@@ -167,8 +163,7 @@ class Game:
         for seat in facade['seats']:
             seat_userid = seat.get('userid', None)
             if seat_userid != userid:
-                should_reveal = self.data['game_state'] == reveal \
-                                and seat_userid in still_standing_userids
+                should_reveal = seat_userid in self.data['revealers']
                 if not should_reveal:
                     num_hole_cards = len(seat.get('hole_cards', []))
                     seat['hole_cards'] = num_hole_cards*['unknown']
@@ -231,7 +226,7 @@ class Game:
         return self._filter_seats(lambda seat: seat['state'] == ready)
 
     def _get_still_standing_seats(self):
-        return self._filter_seats(lambda seat: seat['state'] in [ready, all_in])
+        return self._filter_seats(lambda seat: is_state_still_standing(seat['state']))
 
     def _get_forcing_big_blind_seats(self):
         return self._filter_seats(lambda seat: seat['state'] == forcing_big_blind)
@@ -292,7 +287,7 @@ class Game:
         self._make_pot()
         last_man = self._get_still_standing_seats()[0]
         self.data['win_screen'] = {'win_condition': 'last_man_standing'}
-        self.data['win_queue'].append({'winner': make_winner(last_man, winnings = self.data['pot'])})
+        self.data['win_queue'].append(make_winner(last_man, winnings = self.data['pot']))
         self.data['game_state'] = last_man_standing
         self.data['active_user_position'] = None
 
@@ -431,14 +426,12 @@ class Game:
             self._enter_showdown()
 
         self._append_phase_transition_to_history()
-
         return True
-
-
     
     def _enter_showdown(self):
         self.data['game_state'] = reveal
         best_hands = dict()
+
         standing_seats = self._get_still_standing_seats()
         for seat in standing_seats:
             hand7 = seat['hole_cards'] + self.data['community_cards']
@@ -465,7 +458,6 @@ class Game:
 
             num_winners = len(winners)
             for winner in winners:
-                # winner['best_hand'] = best_hands[winner['userid']]
                 winnings = 0
                 winner_bet = winner['total_bet']
                 for seat in self.data['seats']:
@@ -474,33 +466,36 @@ class Game:
                     gains = min(seat['total_bet'], winner_bet)/num_winners
                     seat['total_bet'] -= gains
                     winnings += gains
-                winner_infos.append({'winner': make_winner(winner, winnings, best_hands[winner['userid']])})
+                winner_infos.append(make_winner(winner, winnings, best_hands[winner['userid']]))
                 num_winners -= 1
             standing_seats = [seat for seat in standing_seats if seat['total_bet'] > 0]
 
         self.data['win_screen'] = {'win_condition': 'showdown'}
         self.data['win_queue'] = winner_infos
 
+        for winner_info in winner_infos:
+            self.data['revealers'].append(winner_info['userid'])
+
+        # aggressor must reveal
+        if self.data['aggressor'] is not None:
+            aggressor_seat = self._find_seat_by_userid(win_info['userid'])
+            # usually the aggressor would still be standing
+            # but logically he can fold after raising
+            # eg. if he raises preflop, everyone calls, then he folds on the flop
+            if is_state_still_standing(aggressor_seat['state']):
+                self.data['revealers'].append(self.data['aggressor'])
+
     def _award_next_winner(self):
         win_info = self.data['win_queue'].pop(0)
-        winnings = win_info['winner']['winnings']
-        self.data['win_screen'].update(win_info)
+        winnings = win_info['winnings']
+        self.data['win_screen']['winner'] = win_info
         self.data['pot'] -= winnings
-        winner_seat = self._find_seat_by_userid(win_info['winner']['userid'])
+        winner_seat = self._find_seat_by_userid(win_info['userid'])
         if winner_seat:
             winner_seat['money'] += winnings
 
-        best_hand = win_info['winner'].get('best_hand', None)
-        hole_cards = winner_seat['hole_cards'] if best_hand else None
-
         # simplified version for history
-        self._append_data_to_history(category = 'win_info', data = {
-            'name': win_info['winner']['name'],
-            'userid': win_info['winner']['userid'],
-            'winnings': winnings,
-            'best_hand': best_hand,
-            'hole_cards': hole_cards
-        })
+        self._append_data_to_history(category = 'win_info', data = win_info)
 
     def _get_current_bet(self):
         bet = 0
@@ -508,6 +503,7 @@ class Game:
             bet = max(seat['round_bet'], bet)
         return bet
 
+    # return amount raised
     def _bet_or_all_in(self, seat, amount):
         user_money = seat['money']
         amount_to_bet = min(user_money, amount)
@@ -524,6 +520,7 @@ class Game:
             seat['state'] = ready
         amount_raised = bet_after - bet_before
         self.data['min_raise'] = max(self.data['min_raise'], amount_raised)
+        return amount_raised
 
     def _is_user_active(self, userid):
         active_user_position = self.data['active_user_position']
@@ -595,6 +592,8 @@ class Game:
         self.data['win_screen'] = None
         self.data['active_user_position'] = None
         self.data['game_state'] = wait_for_players
+        self.data['aggressor'] = None
+        self.data['revealers'] = []
 
     def _append_data_to_history(self, category, data):
         tagged_data = {'category': category}
@@ -645,6 +644,7 @@ class Game:
                 return False
             needed_to_call = current_bet - round_bet
             seat['last_move'] = 'raise'
+            self.data['aggressor'] = userid
             self._bet_or_all_in(seat, raise_amount + needed_to_call)
             self._end_turn(seat)
             return True
@@ -653,7 +653,11 @@ class Game:
         if self._is_user_active(userid):
             seat = self._find_seat_by_userid(userid)
             seat['last_move'] = 'all in'
-            self._bet_or_all_in(seat, seat['money'])
+            amount_raised = self._bet_or_all_in(seat, seat['money'])
+            if amount_raised > 0:
+                # note its possible to go all in without raising
+                # when your stack does not meet the current bet
+                self.data['aggressor'] = userid
             self._end_turn(seat)
             return True
 
@@ -665,6 +669,14 @@ class Game:
             seat['last_move'] = 'fold'
             self._end_turn(seat)
             return True
+
+    def try_reveal(self, userid):
+        if userid not in self.data['revealers'] and \
+           self.is_game_over():
+            self.data['revealers'].append(userid)
+            return True
+        return False
+    
 
 
             
