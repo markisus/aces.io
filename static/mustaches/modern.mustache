@@ -133,8 +133,8 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       {{#if(my_seat && (!my_seat.disconnected))}}
       <span class="green f3">${{ my_seat.money.toFixed(0) }}</span>&emsp;
       {{/if}}
-      <input class="athelas f5 ma1 bg-white ba bw0" value='{{new_name}}'/>
-      <button class="f5" on-click="change_name">change name</button>
+      <input class="athelas f5 ma1 bg-white {{#if new_name == name}}bg-lightest-blue{{/if}}" value='{{new_name}}'/>
+      <button class="f5 " on-click="change_name">change name</button>
       {{#if(my_seat && (!my_seat.disconnected))}}<button class="f5" on-click="leave_seat">leave seat</button>{{/if}}
   </div>
 
