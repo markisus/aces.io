@@ -135,8 +135,11 @@ class Game:
     def _update_ledger(self, userid, name, delta_payout):
         ledger_entry = self.data['ledger'][userid]
         ledger_entry['name'] = name
-        current_payout = ledger_entry.get('payout', 0)
-        ledger_entry['payout'] = delta_payout + current_payout
+        current_payout = ledger_entry.get('payout', 0) + delta_payout
+        if current_payout:
+            ledger_entry['payout'] = current_payout
+        else:
+            del self.data['ledger'][userid]
 
     def try_join(self, userid, name, seat_number, buy_in):
         game = self.data

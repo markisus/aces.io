@@ -9,11 +9,11 @@
   <input class="w-40 f4" value="{{!gameid}}"/><br/>
   <br/>
   <span class="ttu tracked f3">Game URL</span><br/>
-  <span class="f5">visit the url to create/join the game</span><br/>
   {{!# gameid_validates(gameid) }}<a class="f4" href="game/{{!gameid}}">/game/{{!gameid}}</a>{{!else}}
-  <span class="f5">error: valid characters are letters, numbers, and hyphen</span><br/>
+  <span class="f5 red">error: valid characters are letters, numbers, and hyphen</span>
   {{!/validates}}
-  <span class="f5">
+  <br/>
+  <span class="f5">visit the url to create/join the game<br/>all users close to destroy the game</span><br/>
 </script>
 
 <body>
@@ -28,8 +28,7 @@
   <div class="cf center mw6 pa4 f4 bg-lightest-blue">
     <span id="interactive">
     </span>
-    <br/><br/>
-
+    <br/>
     Small Blind <i>1¢</i><br/>
     Big Blind <i>2¢</i><br/>
     Buy In <i>$10</i><br/>
@@ -39,7 +38,7 @@
     &emsp; + no registration<br/>
     &emsp; + anyone with the link can join<br/>
     &emsp; + fake money<br/>
-    &emsp; + copy/pastable updatable ledger<br/>
+    &emsp; + copy/pastable auto-updating ledger<br/>
     <br/>
 
     <span class="ttu tracked f4">Tech</span><br/>
