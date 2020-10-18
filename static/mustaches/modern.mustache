@@ -48,7 +48,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 {{/partial}}
 
 {{#partial player_box}}
-<div class="fl mb1 relative w-100 bw1 pa0 {{>player_box_color_css}} {{#(state == "folded" && !revealers.includes(userid))}}o-50{{/fold}}">
+<div class="fl mb1 relative w-100 bw1 h4 pa0 {{>player_box_color_css}} {{#(state == "folded")}}o-50{{/fold}}">
 
   <!-- timer -->
   {{#(seat_number == active_user_position)}}
@@ -56,7 +56,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
   {{/move_timer}}
 
   <!-- user line -->
-  <div class="fl pa1 w-100 h1">
+  <div class="fl pa1 w-100 h1 pb3">
     {{#if(userid)}}
     <div class="fl truncate w-100">
       {{#(dealer_position == seat_number)}}<span class="gray f7">(D)</span>{{/dealer_position}}
@@ -86,12 +86,12 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
       </div>
       <div class="fl w-100">
         {{#if is_current_winner(userid)}}
-        <span class="green f5">
+        <span class="green f4">
           +{{money_fmt(win_screen.winner.winnings)}}
         </span>&nbsp;
         {{/if}}
 
-        <span class="f4 nowrap underline">
+        <span class="f3 nowrap underline">
           {{#hole_cards}}
           {{>card_display}}
           {{/hole_cards}}
@@ -101,22 +101,21 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
     {{else}}
     <!-- player betting info, non-showdown -->
     <div class="fl pa1 pt2 w-100 tc">
+      <span class="f7 ttu tracked">{{last_move}}</span><br/>
       {{#if is_current_winner(userid)}}
-      <span class="green f5">+{{money_fmt(win_screen.winner.winnings)}}</span>&nbsp;
+      <span class="green f4">+{{money_fmt(win_screen.winner.winnings)}}</span>
       {{/if}}
       <span class="nowrap">
       {{#hole_cards}}
-        <span class="f4">{{>card_display}}</span>
+        <span class="f3">{{>card_display}}</span>
       {{/hole_cards}}
       </span>
-      <span class="f4 nowrap">&nbsp;{{#round_bet}}⛃{{ money_fmt(round_bet) }}{{/round_bet}}</span>
-        <br/>
-        <span class="f7 ttu">{{last_move}}</span>
+      <span class="f3 nowrap">{{#round_bet}}<br/>⛃{{ money_fmt(round_bet) }}{{/round_bet}}</span>
     </div>
     {{/if}}
     {{else}}
     <!-- no user -->
-    <div class="fl pa0 w-100 tc f5">{{>seating_menu}}</div>
+    <div class="fl pa0 w-100 tc f2">{{>seating_menu}}</div>
     {{/if}}
   </div>
   
@@ -126,16 +125,18 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 
 <div class="f1 h3 pa2 ttu tc tracked">aces.io</div>
 
+
 {{#game}}
+<div class="f4 pa2 ttu tc tracked">{{gameid}} <button onclick="navigator.clipboard.writeText(window.location.href);">📋</button></div>  
 <div class="center-ns mw8">
   <!-- user bar -->
   <div class="fl w-100 pa1 tr bg-lightest-blue">
       {{#if(my_seat && (!my_seat.disconnected))}}
-      <span class="green f3">{{ money_fmt(my_seat.money) }}</span>&emsp;
+      <span class="green f2">{{ money_fmt(my_seat.money) }}</span>&emsp;
       {{/if}}
-      <input class="athelas f5 ma1 bg-white {{#if new_name == name}}bg-lightest-blue{{/if}}" value='{{new_name}}'/>
-      <button class="f5 " on-click="change_name">change name</button>
-      {{#if(my_seat && (!my_seat.disconnected))}}<button class="f5" on-click="leave_seat">leave seat</button>{{/if}}
+      <input class="athelas f3 ma1 bg-white {{#if new_name == name}}bg-lightest-blue{{/if}}" value='{{new_name}}'/>
+      <button class="f4" on-click="change_name">change name</button>
+      {{#if(my_seat && (!my_seat.disconnected))}}<button class="f4" on-click="leave_seat">leave seat</button>{{/if}}
   </div>
 
   <!-- game state -->    
@@ -221,14 +222,15 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
         {{#raise_menu}}
         <button on-click="hide_raise_menu">cancel</button>        
         <button on-click="raise">ok</button>        
-        <button on-click="raise_decrease">-</button>
-        <button on-click="raise_increase">+</button> <br/>
-        ⛃{{ money_fmt(round_bet) }} 🡒 ⛃{{ money_fmt(current_bet + raise_amount) }}
+        <button class="f2" on-click="raise_decrease">-</button>
+        <button class="f2" on-click="raise_increase">+</button> <br/>
+        ⛃{{ money_fmt(round_bet) }}→ ⛃{{ money_fmt(current_bet + raise_amount) }}
         {{/raise_menu}}
         {{/is_my_turn}}
 
         {{#can_reveal}}
         <button on-click="reveal">reveal</button>
+        <div class="ttu tracked f6 mt2 center">optional</div>
         {{/can_reveal}}
       </div>
     </div>
@@ -270,7 +272,8 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
     </div>
     
     <div class="fl w-100-l w-50 pa3">
-      <span class="ttu tracked f4">Ledger</span> <span class="f5">{{denomination}}</span> <button class="fr" on-click="copy_ledger_csv">📋</button><br/>
+      <span class="ttu tracked f4">Ledger</span>  <span class="f6 ttu tracked">({{denomination}})</span><button class="fr" on-click="copy_ledger_csv">📋</button><br/>
+      <span class="f5">updates when joining/leaving table</span>
       <div class="pre w5 h4 ma2 w-100 courier bg-moon-gray">
         {{ledger_csv}}
       </div>
