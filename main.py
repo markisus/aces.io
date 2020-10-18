@@ -25,12 +25,6 @@ class StatsHandler(tornado.web.RequestHandler):
         for gameid, l in listeners.items():
             self.write("{}: {}".format(gameid, len(l)))
         
-class NewGameHandler(tornado.web.RequestHandler):
-    def post(self):
-        game_id = human_id.generate_id()
-        games[game_id] = pokerengine.Game(game_id, room_size)
-        self.redirect("game/%s" % game_id)
-
 class GameHandler(tornado.web.RequestHandler):
     def get(self, gameid, skin_id = None):
         preferred_name = self.get_cookie('name', '')
@@ -196,11 +190,11 @@ def tick_games():
 application = tornado.web.Application(
     [
         (r"/", MainHandler),
-        (r"/stats", StatsHandler),
-        (r"/new_game", NewGameHandler),
-        (r"/game/([a-zA-Z0-9\-]+)", GameHandler),
-        (r"/game/([a-zA-Z0-9\-]+)/([a-zA-Z0-9\-]+)", GameHandler), # with skin parameter
-        (r"/gamesocket/([a-zA-Z0-9\-]+)", GameSocketHandler),
+        (r"/_stats", StatsHandler),
+        (r"/_gamesocket/([a-zA-Z0-9\-]+)", GameSocketHandler),        
+        (r"/([a-zA-Z0-9\-]+)", GameHandler),
+        (r"/([a-zA-Z0-9\-]+)/([a-zA-Z0-9\-]+)", GameHandler), # with skin parameter
+
     ],
     cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
     template_path=os.path.join(os.path.dirname(__file__), "templates"),

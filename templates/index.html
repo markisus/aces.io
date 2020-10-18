@@ -9,7 +9,7 @@
   <input class="w-40 f4" value="{{!gameid}}"/><br/>
   <br/>
   <span class="ttu tracked f3">Game URL</span><br/>
-  {{!# gameid_validates(gameid) }}<a class="f4" href="game/{{!gameid}}">/game/{{!gameid}}</a>{{!else}}
+  {{!# gameid_validates(gameid) }}<a class="f4" href="/{{!gameid}}">/{{!gameid}}</a>{{!else}}
   <span class="f5 red">error: valid characters are letters, numbers, and hyphen</span>
   {{!/validates}}
   <br/>

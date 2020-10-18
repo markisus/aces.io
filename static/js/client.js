@@ -62,7 +62,7 @@ var init = function(gameid, preferred_name, template, images_dir) {
   }
 
   function game_connect(gameid, preferred_name) {
-    var socketUrl = url('gamesocket/' + gameid)
+    var socketUrl = url('_gamesocket/' + gameid)
     socket = new WebSocket(socketUrl);
     socket.onopen = function() {
       send({'action' : 'connect', 'preferred_name' : preferred_name});
