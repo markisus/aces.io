@@ -179,7 +179,7 @@ var init = function(gameid, preferred_name, template, images_dir) {
               var dollars = Math.floor(money/100);
               var cents = money - 100*dollars;
               if (cents > 0) {
-                return "$" + dollars + "." + cents.toFixed(0);
+                return "$" + dollars + "." + cents.toFixed(0).padStart(2, "0");
               }
               return "$" + dollars;
             }
