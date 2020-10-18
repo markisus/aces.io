@@ -205,7 +205,6 @@ application = tornado.web.Application(
         (r"/_gamesocket/([a-zA-Z0-9\-]+)", GameSocketHandler),        
         (r"/([a-zA-Z0-9\-]+)", GameHandler),
         (r"/([a-zA-Z0-9\-]+)/([a-zA-Z0-9\-]+)", GameHandler), # with skin parameter
-        (r"/?.*", GameHandler), # for /?referrer type links (eg producthunt)
 
     ],
     cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
