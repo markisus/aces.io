@@ -78,6 +78,8 @@ var init = function(gameid, preferred_name, template, images_dir) {
       template : template,
 
       data : {
+        auto_action : {action: null, call_amount: null, game_state: null},
+        
         is_unknown_card : function(card) {
           return (card == 'unknown');
         },
@@ -437,28 +439,36 @@ var init = function(gameid, preferred_name, template, images_dir) {
                function(event) { this.set('raise_menu', false) });
 
     ractive.observe('is_my_turn', function(current, old, path) {
-      if (!current)
+      if (!current) {
+        // was my turn, now its not
         this.set('raise_menu', false);
+      }
       if (current) {
+        // just became my turn
         var auto_action = this.get('auto_action');
-        var amount_needed = this.get('amount_needed_to_call');
-        if (auto_action == 'call_any') {
-          send({'action' : 'call'});
-        }
-        if (auto_action == 'call') {
-          var auto_call_amount = this.get('auto_call_amount');
-          if (auto_call_amount >= amount_needed)
-            send({'action' : 'call'});
-        }
-        if (auto_action == 'check_fold') {
-          if (amount_needed == 0) {
-            send({'action' : 'call'})
-          } else {
-            send({'action' : 'fold'})
+        if (auto_action.action) {
+          // handle auto action
+          if(auto_action.game_state == this.get('game.game_state')) {
+            var amount_needed = this.get('amount_needed_to_call');
+            if (auto_action.action == 'call_any') {
+              send({'action' : 'call'});
+            }
+            if (auto_action.action == 'call') {
+              var auto_call_amount = auto_action.call_amount;
+              if (auto_call_amount >= amount_needed)
+                send({'action' : 'call'});
+            }
+            if (auto_action.action == 'check_fold') {
+              if (amount_needed == 0) {
+                send({'action' : 'call'})
+              } else {
+                send({'action' : 'fold'})
+              }
+            }
           }
         }
-
-        this.set('auto_action', ''); // reset auto action
+        // now unset auto action
+        this.set("auto_action.action", null);
       }
     });
 
@@ -474,16 +484,6 @@ var init = function(gameid, preferred_name, template, images_dir) {
                      this.set('move_time_left', move_time_left);
       this.animate('move_time_left', 0, {duration : move_time_left * 1000});
     });
-
-    // Reset auto action
-    ractive.observe('amount_needed_to_call', function(current, old) {
-      var auto_action = this.get('auto_action');
-      if (current > old && auto_action == 'call')
-        this.set('auto_action', '');
-    });
-
-    ractive.observe('game.game_state',
-                    function(current, old) { this.set('auto_action', ''); });
 
     ractive.on('copy_ledger_csv', function(event) {
       navigator.clipboard.writeText(this.get('ledger_csv'));
@@ -514,18 +514,22 @@ var init = function(gameid, preferred_name, template, images_dir) {
 
     ractive.on('all_in', event => send({'action' : 'all_in'}));
 
-    ractive.on('auto_action', function(event) {
-      var new_action = event.node.value;
-      var current_action = this.get('auto_action');
-      if (current_action == new_action) {
-        this.set('auto_action', '')
+    ractive.on('set_auto_action', function(event) {
+      var action_type = event.node.value;
+      var auto_action = this.get('auto_action');
+      if (auto_action.action == action_type || action_type == null) {
+        // toggling off logic
+        auto_action.action = null;
       } else {
-        this.set('auto_action', new_action);
+        auto_action.action = action_type;
+        auto_action.game_state = this.get('game.game_state');
+        if (action_type == 'call') {
+          auto_action.call_amount = this.get('amount_needed_to_call');
+        }        
       }
-      if (new_action == 'call') {
-        var amount_needed = this.get('amount_needed_to_call');
-        this.set('auto_call_amount', amount_needed);
-      }
+
+      // notify ractive of changes to update ui
+      this.set('auto_action', auto_action);
     });
 
     ractive.on('change_name', function(event) {
@@ -559,31 +563,19 @@ var init = function(gameid, preferred_name, template, images_dir) {
       }
       if (event.key == 'Escape') {
         this.fire('hide_raise_menu');
-        this.set('auto_action', null);
+        this.set('auto_action.action', null);
       }
       if (event.key == 'Enter') {
         this.fire('raise');
       }
       if (event.key == '4') {
-        if (this.get('auto_action') == 'check_fold') {
-          this.set('auto_action', '');
-        } else {
-          this.set('auto_action', 'check_fold');
-        }
+        this.fire('set_auto_action', 'check_fold');
       }
       if (event.key == '5') {
-        if (this.get('auto_action') == 'call') {
-          this.set('auto_action', '');
-        } else {
-          this.set('auto_action', 'call');
-        }
+        this.get('set_auto_action', 'call');
       }
       if (event.key == '6') {
-        if (this.get('auto_action') == 'call_any') {
-          this.set('auto_action', '');
-        } else {
-          this.set('auto_action', 'call_any');
-        }
+        this.get('set_auto_action', 'call_any');
       }
     });
 

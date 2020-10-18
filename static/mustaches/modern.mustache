@@ -125,7 +125,6 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 
 <div class="f1 h3 pa2 ttu tc tracked">aces.io</div>
 
-
 {{#game}}
 <div class="f4 pa2 ttu tc tracked">{{gameid}} <button onclick="navigator.clipboard.writeText(window.location.href);">📋</button></div>  
 <div class="center-ns mw8">
@@ -197,22 +196,24 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 
       <div class="fl w-100 pa3 f3 tc">
         {{#can_i_bet_later}}
-        <span class="ttu tracked">pre-move</span> <br/>
+          <span class="ttu tracked">pre-move</span> <br/>
+
         {{#amount_needed_to_call == 0 && !had_turn}}
         <button
-          class="{{#auto_action == 'check_fold'}}bg-silver{{/selected}}"
-          on-click="auto_action" value="check_fold">check fold</button>
+          class="{{#auto_action.action == 'check_fold'}}bg-silver{{/selected}}"
+          on-click="set_auto_action" value="check_fold">check fold</button>
         {{/can_check}}
 
         {{#!had_turn || (amount_needed_to_call > 0)}}
         <button
-          class="{{#auto_action == 'call'}}bg-silver{{/selected}}"
-          on-click="auto_action" value="call">{{#if(amount_needed_to_call)}}call{{else}}check{{/if}}</button>
+          class="{{#auto_action.action == 'call' &&
+          auto_action.call_amount == amount_needed_to_call}}bg-silver{{/selected}}"
+          on-click="set_auto_action" value="call">{{#if(amount_needed_to_call)}}call{{else}}check{{/if}}</button>
         {{/can_call_or_check_current_bet}}
 
         <button
-          class="{{#auto_action == 'call_any'}}bg-silver{{/selected}}"
-          on-click="auto_action" value="call_any">call any</button>
+          class="{{#auto_action.action == 'call_any'}}bg-silver{{/selected}}"
+          on-click="set_auto_action" value="call_any">call any</button>
 
         {{/can_i_bet_later}}
         
