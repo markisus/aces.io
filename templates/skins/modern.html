@@ -7,7 +7,5 @@
 <div id="content"></div>
 
 <script>
-    var images_dir = "/static/images";
-    var template_path = "{{static_url("mustaches/modern.mustache")}}";
-    init("{{ gameid }}", "{{ preferred_name }}", template_path, images_dir);
+    init("{{ gameid }}", "{{ preferred_name }}", "{{static_url("mustaches/modern.mustache")}}");
 </script>

@@ -70,8 +70,9 @@ var init = function(gameid, preferred_name, template, images_dir) {
     socket.onmessage = event => receive(event.data);
   }
 
-  var initialize_ractive =
-      function(template, images_dir) {
+  var initialize_ractive = function(template) {
+    var images_dir = "/static/images/";
+
     ractive = new Ractive({
       el : '#content',
       template : template,
@@ -594,7 +595,7 @@ var init = function(gameid, preferred_name, template, images_dir) {
   fetch(template)
     .then(response => response.text())
     .then(function(text) {
-      ractive = initialize_ractive(text, images_dir);
+      ractive = initialize_ractive(text);
       game_connect(gameid, preferred_name);
     });
 
