@@ -12,6 +12,7 @@ folded = 'folded'
 busted = 'busted'
 empty = 'empty'
 
+# main game phases
 wait_for_players = 'wait_for_players'
 pre_flop = 'pre_flop'
 flop = 'flop'
@@ -97,7 +98,8 @@ class Game:
             'next_move_due': 0,
             'move_time': 18,
             'history': deque(),
-            'ledger': defaultdict(dict)
+            'ledger': defaultdict(dict),
+            'phase_prologue': False, # just dealt hole cards, or just deal community cards, no active user yet
         }
 
         for seat_number in range(room_size):
@@ -275,6 +277,8 @@ class Game:
             return True
         if self._can_enter_pre_flop():
             return True
+        if self.data['phase_prologue']:
+            return True
         return False
 
     def _append_phase_transition_to_history(self):
@@ -390,14 +394,17 @@ class Game:
                 card = self._deal_card()
                 seat['hole_cards'].append(card)
 
+        self.data['phase_prologue'] = True
+
+    def _continue_pre_flop(self):
         # set utg to next after the big blind
-        # do not use _set_utg function since pre-flop has different utg logic
+        # do not use _continue_phase since pre-flop has different utg logic
         utg_potentials = self._extract_seat_numbers(self._get_can_bet_seats())
         big_blind_position = self.data['big_blind_position']
         self._update_active_user_position(
             next_greatest(big_blind_position, utg_potentials))
-
         self._update_best_hands()
+        self.data['phase_prologue'] = False
 
     def _enter_flop(self):
         self.data['game_state'] = flop
@@ -405,26 +412,37 @@ class Game:
         for i in range(3):
             card = self._deal_card()
             self.data['community_cards'].append(card)
-        self._set_utg()
-        self._update_best_hands()
+        self.data['phase_prologue'] = True
 
     def _enter_turn(self):
         self.data['game_state'] = turn
         self._prepare_next_round()
         card = self._deal_card()
         self.data['community_cards'].append(card)
-        self._set_utg()
-        self._update_best_hands()
+        self.data['phase_prologue'] = True
 
     def _enter_river(self):
         self.data['game_state'] = river
         self._prepare_next_round()
         card = self._deal_card()
         self.data['community_cards'].append(card)
+        self.data['phase_prologue'] = True
+
+    def _continue_phase(self):
+        # do not use for pre-flop - instead call _continue_preflop
         self._set_utg()
         self._update_best_hands()
+        self.data['phase_prologue'] = False
 
     def auto_advance(self):
+        if self.data['phase_prologue']:
+            game_state = self.data['game_state']
+            if game_state == pre_flop:
+                self._continue_pre_flop()
+            else:
+                self._continue_phase()
+            return True
+        
         # cannot advance if currently waiting for user move
         if not self.data['active_user_position'] is None:
             return False
@@ -617,6 +635,7 @@ class Game:
         self.data['game_state'] = wait_for_players
         self.data['aggressor'] = None
         self.data['revealers'] = []
+        self.data['phase_prologue'] = False
 
     def _append_data_to_history(self, category, data):
         tagged_data = {'category': category}

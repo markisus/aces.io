@@ -63,19 +63,21 @@ def try_enter_transition(game):
     if game.can_auto_advance() and not game.data['transitioning']:
         game.data['transitioning'] = True
 
-        delay = 1.0
+        delay = 0.5 # don't wait too long by default
+
         if game.data['game_state'] == pokerengine.wait_for_players:
             delay = 2.0
 
-        if game.is_game_over() and \
-           game.data['win_screen'].get('winner', None) is None:
-            # game over but didn't start awards screen for any user
-            # no need to wait too long here
-            delay = 0.5
-            
+        if game.data['phase_prologue']:
+            delay = 1.0
+
         if game.data['win_screen'] and game.data['win_screen'].get('winner', None):
             # currently awarding winner, keep this screen for longer
-            delay = 6.0
+            if game.data['game_state'] == pokerengine.reveal:
+                delay = 6.0
+            else:
+                # last man standing
+                delay = 4.0
 
         ioloop = tornado.ioloop.IOLoop.instance()
         def callback():
