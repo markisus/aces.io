@@ -142,7 +142,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
   <!-- game state -->    
   <div class="f2 w-100 tc ttu tracked">{{ pretty_game_state }}</div>
   <!-- player columns -->
-  <div class="fl w-third-l w-50 pa0 ma0">
+  <div class="fl w-third-l w-50 pa0 ma0 pr3">
     <div class="fl w-50">
       {{#reverse_seat_idxs}}
       <div class="{{#if(@index == 0 || @index == 4)}}pr0{{else}}pr1{{/if}}">
@@ -284,7 +284,6 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
     
     <div class="fl w-100-l w-50 pa3">
       <span class="ttu tracked f4">Ledger</span>  <span class="f6 ttu tracked">({{denomination}})</span><button class="fr" on-click="copy_ledger_csv">📋</button><br/>
-      <span class="f5">updates when joining/leaving table</span>
       <div class="pre w5 h4 ma2 w-100 courier bg-moon-gray">
         {{ledger_csv}}
       </div>

@@ -154,7 +154,6 @@ class Game:
         if buy_in > game['max_buy_in']:
             return False
         self._seat_user(seat_number, userid, name, buy_in)
-        self._update_ledger(userid, name, -buy_in)
         return True
     
     def is_game_over(self):
@@ -201,7 +200,6 @@ class Game:
         if user_seat:
             seat_number = user_seat['seat_number']
             if self.data['game_state'] == wait_for_players:
-                self._update_ledger(userid, user_seat['name'], user_seat['money'])
                 user_seat.update(self._make_empty_seat(user_seat['seat_number']))
             else:
                 folded = self.try_fold(user_seat['userid'])
@@ -533,6 +531,7 @@ class Game:
         winner_seat = self._find_seat_by_userid(win_info['userid'])
         if winner_seat:
             winner_seat['money'] += winnings
+            self._update_ledger(win_info['userid'], winner_seat['name'], delta_payout = winnings)
 
         # simplified version for history
         self._append_data_to_history(category = 'win_info', data = win_info)
@@ -560,6 +559,7 @@ class Game:
             seat['state'] = ready
         amount_raised = bet_after - bet_before
         self.data['min_raise'] = max(self.data['min_raise'], amount_raised)
+        self._update_ledger(seat['userid'], seat['name'], delta_payout = -amount_to_bet)
         return amount_raised
 
     def _is_user_active(self, userid):
@@ -611,7 +611,6 @@ class Game:
                 continue            
             empty_seat = self._make_empty_seat(seat['seat_number'])
             if seat['disconnected']:
-                self._update_ledger(seat['userid'], seat['name'], seat['money'])
                 seat.update(empty_seat)
             seat['hole_cards'] = []
             seat['best_hand'] = None
