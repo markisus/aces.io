@@ -27,6 +27,7 @@ class StatsHandler(tornado.web.RequestHandler):
         
 class GameHandler(tornado.web.RequestHandler):
     def get(self, gameid, skin_id = None):
+        gameid = gameid.lower() # case insensitive
         preferred_name = self.get_cookie('name', '')
         
         if skin_id is not None:
@@ -87,6 +88,7 @@ def try_enter_transition(game):
 
 class GameSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self, gameid):
+        gameid = gameid.lower()
         self.gameid = gameid
         self.userid = str(uuid.uuid4())
         self.name = None # name is set on connect
