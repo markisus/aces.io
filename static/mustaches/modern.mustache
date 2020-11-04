@@ -24,9 +24,10 @@
 <button on-click="show_buyin_menu">buy in</button>
 {{/step1}}
 {{#(show_buyin_menu == seat_number)}}
-<button on-click="buy_in">{{money_fmt(buy_in)}}</button><br/>
+{{money_fmt(buy_in)}}<br/>
 <button on-click="buy_in_decrease">-</button>
 <button on-click="buy_in_increase">+</button>
+<button on-click="buy_in">✓</button>
 {{/step2}}
 {{/not_already_seated}}
 {{/partial}}
@@ -48,7 +49,7 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
 {{/partial}}
 
 {{#partial player_box}}
-<div class="fl mb1 relative w-100 bw1 h4 pa0 {{>player_box_color_css}} {{#(state == "folded")}}o-50{{/fold}}">
+<div class="fl relative w-100 bw1 h4 pa0 {{>player_box_color_css}} {{#(state == "folded")}}o-50{{/fold}}">
 
   <!-- timer -->
   {{#(seat_number == active_user_position)}}
@@ -141,20 +142,24 @@ b--lightest-blue bg-lightest-blue{{/user_active}}
   <!-- game state -->    
   <div class="f2 w-100 tc ttu tracked">{{ pretty_game_state }}</div>
   <!-- player columns -->
-  <div class="fl w-third-l w-50 pa0 pr2 pl2">
-    <div class="fl w-50 pr1">
-    {{#reverse_seat_idxs}}
+  <div class="fl w-third-l w-50 pa0 ma0">
+    <div class="fl w-50">
+      {{#reverse_seat_idxs}}
+      <div class="{{#if(@index == 0 || @index == 4)}}pr0{{else}}pr1{{/if}}">
       {{#if(. >= seats.length/2)}}
       {{#seats[.]}}{{>player_box}}{{/seat}}
       {{/if}}
-    {{/seat_idxs}}
+      </div>
+      {{/reverse_seat_idxs}}
     </div>      
     <div class="fl w-50">
     {{#seat_idxs}}
+      <div class="{{#if(@index == 0 || @index == 4)}}pl0{{else}}pl1{{/if}}">        
       {{#if(. < seats.length/2)}}
       {{#seats[.]}}{{>player_box}}{{/seat}}
       {{/if}}
-    {{/reverse_seat_idxs}}
+      </div>
+    {{/seat_idxs}}
     </div>
   </div>
 
